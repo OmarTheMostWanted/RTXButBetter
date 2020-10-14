@@ -15,8 +15,6 @@ cmake-build-debug
 
 
 #c++
-
-
 # Compiled Static libraries
 *.lai
 *.la
@@ -38,3 +36,7 @@ cmake-build-debug
 *.lo
 *.o
 *.obj
+
+#Clion
+.idea
+
