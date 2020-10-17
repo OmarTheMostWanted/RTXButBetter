@@ -26,9 +26,9 @@ DISABLE_WARNINGS_POP()
 #endif
 
 // This is the main application. The code in here does not need to be modified.
-constexpr glm::ivec2 windowResolution { 800, 800 };
-const std::filesystem::path dataPath { DATA_DIR };
-const std::filesystem::path outputPath { OUTPUT_DIR };
+constexpr glm::ivec2 windowResolution{800, 800};
+const std::filesystem::path dataPath{DATA_DIR};
+const std::filesystem::path outputPath{OUTPUT_DIR};
 
 enum class ViewMode {
     Rasterization = 0,
@@ -36,15 +36,122 @@ enum class ViewMode {
 };
 
 
+
+//debug ray colors:
+//white = ray to point to intersection point if exists
+//blue = ray from intersection point to [ the objects that block the light or the visible light sources
+
+
+//Phong functions
+glm::vec3
+diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition) {
+    auto cosAngle = glm::dot(hitInfo.normal, glm::normalize(lightPosition - hitInfo.intersectionPoint));
+    if (cosAngle > 0) {
+        auto res = hitInfo.material.kd * cosAngle;
+        return res;
+    } else return glm::vec3(0);
+}
+
+
+glm::vec3 phongSpecularOnly(const HitInfo hitInfo, const glm::vec3 lightPosition, const glm::vec3 &cameraPos) {
+
+    float cosNormalLight = glm::dot(glm::normalize(lightPosition - hitInfo.intersectionPoint), hitInfo.normal);
+
+    if (cosNormalLight < 0) {
+        return glm::vec3(0);
+    }
+    auto lightVec = glm::normalize(hitInfo.intersectionPoint - lightPosition);
+    auto camVec = glm::normalize(cameraPos - hitInfo.intersectionPoint);
+    auto normalN = glm::normalize(hitInfo.normal);
+    auto reflectedLight = glm::normalize(lightVec - (2 * (glm::dot(lightVec, normalN))) * normalN);
+    return hitInfo.material.ks * glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess);
+
+}
+
+/**
+ * Check if the point is visible from the light scours.
+ *
+ * @param ray From the point to the light
+ * @param lightPosition
+ * @param hitInfo
+ * @param bvh
+ * @return
+ */
+bool visibleToLight(glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh) {
+
+    Ray rayToLight = {hitInfo.intersectionPoint, glm::normalize(lightPosition - hitInfo.intersectionPoint) };
+
+    rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
+
+
+    HitInfo hitInfo1;
+
+
+    auto intersection = bvh.intersect(rayToLight, hitInfo1);
+
+    float fromLightToPoint = glm::length(rayToLight.origin - lightPosition);
+
+
+    if (intersection) {
+
+        float fromPointToIntersection = glm::length(rayToLight.origin + rayToLight.direction * rayToLight.t);
+
+        if (fromPointToIntersection < fromLightToPoint) {
+//            std::cout << "Light Blocked"<< std::endl;
+            drawRay(rayToLight, glm::vec3(0 , 0 , 1));
+            return false;
+        }
+    }
+//    std::cout << "Light not blocked "<< std::endl;
+
+    rayToLight.t = fromLightToPoint;
+    drawRay(rayToLight, glm::vec3(0 , 0 , 1.0f));
+    return true;
+
+
+}
+
+
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
-static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy& bvh, Ray ray)
-{
+static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray) {
+
     HitInfo hitInfo;
+
+
     if (bvh.intersect(ray, hitInfo)) {
-        // Draw a white debug ray.
+
+
+
+//         Draw a white debug ray.
         drawRay(ray, glm::vec3(1.0f));
-        // Set the color of the pixel to white if the ray hits.
-        return glm::vec3(1.0f);
+
+        auto color = glm::vec3(0.0f);
+        //shading
+        // compute shading for each light source
+        for (PointLight pointLight : scene.pointLights) {
+
+            if (visibleToLight(pointLight.position, hitInfo, bvh)) {
+                color += diffuseOnly(hitInfo, pointLight.position);
+                color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin);
+//            std::cout << color.x << " " <<  color.y  << " " << color.z << " " << std::endl;
+            }
+        }
+
+        for (SphericalLight sphericalLight : scene.sphericalLight) {
+            Ray rayToLight = {hitInfo.intersectionPoint,
+                              glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
+            if (visibleToLight(sphericalLight.position, hitInfo, bvh)) {
+                color += diffuseOnly(hitInfo, sphericalLight.position);
+                color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin);
+            }
+        }
+
+
+        return color;
+
+
+//        // Set the color of the pixel to white if the ray hits.
+//        return glm::vec3(1.0f);
     } else {
         // Draw a red debug ray if the ray missed.
         drawRay(ray, glm::vec3(1.0f, 0.0f, 0.0f));
@@ -53,21 +160,23 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
     }
 }
 
-static void setOpenGLMatrices(const Trackball& camera);
-static void renderOpenGL(const Scene& scene, const Trackball& camera, int selectedLight);
+
+static void setOpenGLMatrices(const Trackball &camera);
+
+static void renderOpenGL(const Scene &scene, const Trackball &camera, int selectedLight);
 
 // This is the main rendering function. You are free to change this function in any way (including the function signature).
-static void renderRayTracing(const Scene& scene, const Trackball& camera, const BoundingVolumeHierarchy& bvh, Screen& screen)
-{
+static void
+renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolumeHierarchy &bvh, Screen &screen) {
 #ifdef USE_OPENMP
 #pragma omp parallel for
 #endif
     for (int y = 0; y < windowResolution.y; y++) {
         for (int x = 0; x != windowResolution.x; x++) {
             // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
-            const glm::vec2 normalizedPixelPos {
-                float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f
+            const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f
             };
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             screen.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));

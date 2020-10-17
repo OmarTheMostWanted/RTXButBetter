@@ -98,13 +98,23 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
                     return false;
                 }
 
-                if (ray.t > t) ray.t = t;
+                if (ray.t > t) {
+                    ray.t = t;
 
-                return true;
+                    hitInfo.intersectionPoint = intersectionPoint;
+                    hitInfo.normal = plane.normal;
+                    return true;
+
+                }
             }
         } else {
             if (compare_float(dot((pointOnPlane - ray.origin), plane.normal), 0)) { //ray is on the plane
+
+
                 ray.t = 0;
+
+                hitInfo.intersectionPoint = ray.origin;
+                hitInfo.normal = plane.normal;
                 return true;
             }
         }
@@ -139,6 +149,9 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
             if (tIn < ray.t) {
                 ray.t = tIn;
             }
+
+//            hitInfo.intersectionPoint = ray.origin + (ray.direction * tIn);
+//            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
             return true;
         }
 
@@ -146,6 +159,10 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
             if (ray.t > t2) {
                 ray.t = t2;
             }
+
+//            hitInfo.intersectionPoint = ray.origin + (ray.direction * t2);
+//            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
+
             return true;
         }
 
@@ -153,6 +170,11 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
             if (ray.t > t1) {
                 ray.t = t1;
             }
+
+//            hitInfo.intersectionPoint = ray.origin + (ray.direction * t1);
+//            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
+
+
             return true;
         }
 
@@ -166,6 +188,11 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
         if (ray.t > t) {
             ray.t = t;
         }
+
+        hitInfo.intersectionPoint = ray.origin + (ray.direction * t);
+        hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
+
+
         return true;
     }
 
