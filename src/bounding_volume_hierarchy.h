@@ -17,4 +17,15 @@ public:
 
 private:
     Scene* m_pScene;
+    std::vector<Node> nodes; // contains all existing nodes
+};
+
+struct Node {
+
+public:
+    std::vector<Node> children; // two children nodes
+    bool type; // 0 for interior, 1 for a leaf node
+    AxisAlignedBox box; // coordinates of a axis-aligned box corespondign to the node
+    std::vector<uint16_t> vertices; // indices of vertices contained in the node, empty for interior nodes
+
 };
