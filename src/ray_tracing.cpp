@@ -138,67 +138,37 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
     float D = B * B - (4 * A * C);
 
 
-    if (D > 0) {
+    if (D >= 0) {
 
         float t1 = ((-1 * B) + glm::sqrt(D)) / (2 * A);
         float t2 = ((-1 * B) - glm::sqrt(D)) / (2 * A);
 
         if (t1 >= 0 && t2 >= 0) {
-            float tIn = glm::min(t1, t2);
-            float tOut = glm::max(t1, t2);
-            if (tIn < ray.t) {
-                ray.t = tIn;
+
+            if (ray.t > t2) {
+                ray.t = t2;
+                return true;
             }
 
 //            hitInfo.intersectionPoint = ray.origin + (ray.direction * tIn);
 //            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
-            return true;
+            
         }
 
-        if (t1 < 0 && t2 >= 0) { //t2 is the exit point
-            if (ray.t > t2) {
-                ray.t = t2;
+        if (t1 >= 0 && t2 < 0) { //t2 is the exit point
+            if (ray.t > t1) {
+                ray.t = t1;
+                return true;
             }
 
 //            hitInfo.intersectionPoint = ray.origin + (ray.direction * t2);
 //            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
-
-            return true;
-        }
-
-        if (t2 < 0 && t1 >= 0) { //t1 is the exit point
-            if (ray.t > t1) {
-                ray.t = t1;
-            }
-
-//            hitInfo.intersectionPoint = ray.origin + (ray.direction * t1);
-//            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
-
-
-            return true;
+            
         }
 
     }
 
-    if (compare_float(D, 0)) {
-        float t = (-1 * B) / (2 * A);
-        if (t < 0) {
-            return false;
-        }
-        if (ray.t > t) {
-            ray.t = t;
-        }
-
-        hitInfo.intersectionPoint = ray.origin + (ray.direction * t);
-        hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
-
-
-        return true;
-    }
-
-    if (D < 0) {
-        return false;
-    }
+    return false;
 
 }
 
