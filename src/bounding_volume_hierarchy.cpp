@@ -53,3 +53,64 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
         hit |= intersectRayWithShape(sphere, ray, hitInfo);
     return hit;
 }
+
+// creates new AxisAlignedBox containing all of the vertices and returns it
+AxisAlignedBox BoundingVolumeHierarchy::createBoxFromVertices(std::vector<int> vertices)
+{
+
+    int minX = INT_MAX;
+    int minY = INT_MAX;
+    int minZ = INT_MAX;
+
+    int maxX = INT_MIN;
+    int maxY = INT_MIN;
+    int maxZ = INT_MIN;
+
+    for (const auto& mesh : m_pScene->meshes) {
+        for (const auto& vertex : mesh.vertices) {
+
+            if (minX > vertex.p[0]) {
+
+                minX = vertex.p[0];
+            }
+            if (maxX < vertex.p[0]) {
+
+                maxX = vertex.p[0];
+            }
+            if (minY > vertex.p[1]) {
+
+                minY = vertex.p[1];
+            }
+            if (maxY < vertex.p[1]) {
+
+                maxY = vertex.p[2];
+            }
+            if (minZ > vertex.p[2]) {
+
+                minZ = vertex.p[2];
+            }
+            if (maxZ < vertex.p[2]) {
+
+                maxZ = vertex.p[2];
+            }
+
+        }
+    }
+
+    AxisAlignedBox newBox{ glm::vec3(minX, minY, minZ),  glm::vec3(maxX, maxY, maxZ) };
+
+    return newBox;
+}
+
+Node BoundingVolumeHierarchy::createNodeFromVertices(std::vector<int> vertices)
+{
+
+    Node newNode;
+    newNode.box = createBoxFromVertices(vertices);
+    newNode.indices = vertices; // this will be replaces with the indices of children nodes if the node turns out to be an interior node
+    newNode.type = 1; // a temporal status
+
+    return newNode;
+}
+
+
