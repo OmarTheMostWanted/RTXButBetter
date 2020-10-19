@@ -178,7 +178,7 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         // compute shading for each light source
         for (PointLight pointLight : scene.pointLights) {
 
-            if (visibleToLight(ray , pointLight.position, hitInfo, bvh)) {
+            if (visibleToLight(ray, pointLight.position, hitInfo, bvh)) {
                 color += diffuseOnly(hitInfo, pointLight.position) * pointLight.color;
                 color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin) * pointLight.color;
             }
@@ -187,15 +187,15 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         for (SphericalLight sphericalLight : scene.sphericalLight) {
             Ray rayToLight = {hitInfo.intersectionPoint,
                               glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
-            if (visibleToLight(ray , sphericalLight.position, hitInfo, bvh)) {
+            if (visibleToLight(ray, sphericalLight.position, hitInfo, bvh)) {
                 color += diffuseOnly(hitInfo, sphericalLight.position) * sphericalLight.color;
                 color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin) * sphericalLight.color;
             }
         }
 
 
+//        return hitInfo.material.kd;
         return color;
-
 
 //        // Set the color of the pixel to white if the ray hits.
 //        return glm::vec3(1.0f);
