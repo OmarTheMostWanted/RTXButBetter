@@ -105,17 +105,17 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
                 float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
                 if (fromPointToIntersection < fromLightToPoint) {
-                    std::cout << "Light Blocked"<< std::endl;
+//                    std::cout << "Light Blocked"<< std::endl;
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
 
-                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
+//                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
 
-                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
+//                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
 
                     return false;
                 }
             }
-            std::cout << "Light not blocked "<< std::endl;
+//            std::cout << "Light not blocked "<< std::endl;
 
             rayToLight.t = fromLightToPoint;
             drawRay(rayToLight, glm::vec3(0 , 0 , 1.0f));
@@ -123,7 +123,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
 
         } else {
-            std::cout << "light is behind the mesh" << std::endl;
+//            std::cout << "light is behind the mesh" << std::endl;
             return false;
         }
 
@@ -147,16 +147,16 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
                 float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
                 if (fromPointToIntersection < fromLightToPoint) {
-                    std::cout << "Light Blocked"<< std::endl;
-                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
+//                    std::cout << "Light Blocked"<< std::endl;
+//                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
 
-                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
+//                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
 
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
                     return false;
                 }
             }
-            std::cout << "Light not blocked "<< std::endl;
+//            std::cout << "Light not blocked "<< std::endl;
 
             rayToLight.t = fromLightToPoint;
             drawRay(rayToLight, glm::vec3(0 , 0 , 1.0f));
@@ -165,7 +165,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
         } else {
 
-            std::cout << "light is behind the mesh" << std::endl;
+//            std::cout << "light is behind the mesh" << std::endl;
             return false;
 
         }
