@@ -38,8 +38,9 @@ enum class ViewMode {
 
 
 //debug ray colors:
-//white = ray to point to intersection point if exists
-//blue = ray from intersection point to [ the objects that block the light or the visible light sources
+//white = ray to point to intersection point if exists.
+//blue = ray from intersection point to the objects that block the light.
+//green = ray from the intersection point to the light if its not blocked.
 
 
 //Phong functions
@@ -82,11 +83,11 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
     Ray rayToLight = {hitInfo.intersectionPoint, glm::normalize(lightPosition - hitInfo.intersectionPoint) };
 
 
-    //make sure that the ray hits the lit side of the mesh.
     auto cosLightNormal = glm::dot(rayToLight.direction , hitInfo.normal);
-
+    //make sure that the ray hits the lit side of the mesh.
     if(cosLightNormal >= 0 ){
 
+        //the ray is at the same side as the light relative to the normal.
         if(glm::dot(inComingRay.direction , hitInfo.normal) < 0  ){
 
             rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
@@ -104,6 +105,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
                 float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
+                //make sure if the there is an object closer to the point than the light ie the light is blocked
                 if (fromPointToIntersection < fromLightToPoint) {
 //                    std::cout << "Light Blocked"<< std::endl;
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
@@ -118,7 +120,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 //            std::cout << "Light not blocked "<< std::endl;
 
             rayToLight.t = fromLightToPoint;
-            drawRay(rayToLight, glm::vec3(0 , 0 , 1.0f));
+            drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
             return true;
 
 
@@ -156,20 +158,12 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
                     return false;
                 }
             }
-//            std::cout << "Light not blocked "<< std::endl;
-
             rayToLight.t = fromLightToPoint;
-            drawRay(rayToLight, glm::vec3(0 , 0 , 1.0f));
+            drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
             return true;
-
-
         } else {
-
-//            std::cout << "light is behind the mesh" << std::endl;
             return false;
-
         }
-
     }
 }
 
@@ -193,7 +187,6 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
             if (visibleToLight(ray , pointLight.position, hitInfo, bvh)) {
                 color += diffuseOnly(hitInfo, pointLight.position);
                 color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin);
-//            std::cout << color.x << " " <<  color.y  << " " << color.z << " " << std::endl;
             }
         }
 
