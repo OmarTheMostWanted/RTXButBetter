@@ -29,10 +29,14 @@ public:
 
     // Splits the given axis so thath
     void splitNode(Node& node);
+
+    void compareCostsAndUpdate(Node& parentNode, std::vector<std::vector<int>> dividedVertices);
+
     void splitNodeX(Node& node);
     void splitNodeY(Node& node);
     void splitNodeZ(Node& node);
 
+    std::vector<std::vector<int>> divideByPlane(Node node, glm::vec3 normal, glm::vec3 point);
 
     float calculateBoxVolume(AxisAlignedBox box);
 
