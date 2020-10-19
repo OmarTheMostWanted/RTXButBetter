@@ -1,8 +1,10 @@
 #include "bounding_volume_hierarchy.h"
 #include "draw.h"
+#include <iostream>
+#include <glm\geometric.hpp>
 
-BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
-    : m_pScene(pScene)
+BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene, int numberOfSplits)
+    : m_pScene(pScene), numberOfSplits(numberOfSplits)
 {
 
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
@@ -44,7 +46,7 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
             const auto v2 = mesh.vertices[tri[2]];
             if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
                 hitInfo.material = mesh.material;
-                hit = true;
+hit = true;
             }
         }
     }
@@ -102,6 +104,7 @@ AxisAlignedBox BoundingVolumeHierarchy::createBoxFromVertices(std::vector<int> v
     return newBox;
 }
 
+// Creates a new node out of given vertices given as indices
 Node BoundingVolumeHierarchy::createNodeFromVertices(std::vector<int> vertices)
 {
 
@@ -112,5 +115,109 @@ Node BoundingVolumeHierarchy::createNodeFromVertices(std::vector<int> vertices)
 
     return newNode;
 }
+
+// Creates a new node out of given vertices given as indices and an already made box
+Node BoundingVolumeHierarchy::createNodeFromVertices(std::vector<int> vertices, AxisAlignedBox box)
+{
+
+    Node newNode;
+    newNode.box = box;
+    newNode.indices = vertices; // this will be replaces with the indices of children nodes if the node turns out to be an interior node
+    newNode.type = 1; // a temporal status
+
+    return newNode;
+}
+
+// Divides the node using Surface Area Heuristics and sets the resulting nodes as its children
+void BoundingVolumeHierarchy::splitNode(Node& node) {
+
+    if (node.type == 1) {
+
+        std::cout << "You cannot split a node that is already split" << std::endl;
+    }
+}
+
+// Calculates the best splits along the X axis
+void BoundingVolumeHierarchy::splitNodeX(Node& node) {
+
+    int lowerX = node.box.upper[0];
+    int higherX = node.box.lower[1];
+
+    glm::vec3 normal = glm::vec3(1, 0, 0);
+
+    int range = higherX - lowerX;
+    int intreval = range / this->numberOfSplits;
+
+    std::vector<int> firstGroupVertices;
+    std::vector<int> secondGroupVertices;
+
+    std::vector<Node> bestFitNodes;
+
+
+    for (int i = 1; i < this->numberOfSplits; i++) {
+
+        glm::vec3 point = glm::vec3(lowerX + intreval, 0, 0);
+
+        for (const auto& mesh : m_pScene->meshes) {
+            for (const auto& tri : mesh.triangles) {
+
+                glm::vec3 controlVector0 = mesh.vertices[tri[0]].p - point;
+                glm::vec3 controlVector1 = mesh.vertices[tri[1]].p - point;
+                glm::vec3 controlVector2 = mesh.vertices[tri[2]].p - point;
+
+                if (glm::dot(normal, controlVector0) >= 0 || glm::dot(normal, controlVector1) >= 0 || glm::dot(normal, controlVector2) >= 0) {
+
+                    firstGroupVertices.push_back(tri[0]);
+                    firstGroupVertices.push_back(tri[1]);
+                    firstGroupVertices.push_back(tri[2]);
+                }
+                if (glm::dot(normal, controlVector0) < 0 || glm::dot(normal, controlVector1) < 0 || glm::dot(normal, controlVector2) < 0) {
+
+                    secondGroupVertices.push_back(tri[0]);
+                    secondGroupVertices.push_back(tri[1]);
+                    secondGroupVertices.push_back(tri[2]);
+                }
+            }
+        }
+
+        AxisAlignedBox firstBox = createBoxFromVertices(firstGroupVertices);
+        AxisAlignedBox secondBox = createBoxFromVertices(secondGroupVertices);
+
+        float splitCost = calculateSplitCost(node.box, firstBox, secondBox);
+
+        if (splitCost < node.splitCost) {
+
+            node.splitCost = splitCost;
+            Node firstChild = createNodeFromVertices(firstGroupVertices, firstBox);
+            Node secondChild = createNodeFromVertices(secondGroupVertices, secondBox);
+            
+            this->nodes.push_back(firstChild);
+            this->nodes.push_back(secondChild);
+
+            // pushing the indices of newly created node to be our children nodes
+            node.indices.push_back(this->nodes.size() - 2);
+            node.indices.push_back(this->nodes.size() - 1);
+            node.type = 0;
+        }
+
+        
+    }
+    
+}
+
+float BoundingVolumeHierarchy::calculateBoxVolume(AxisAlignedBox box) {
+
+    return (box.upper[0] - box.lower[0]) * (box.upper[1] - box.lower[1]) * (box.upper[2] - box.lower[2]);
+}
+
+// Calculates the cost of a split
+// the smaller the cost, the better the split is
+float BoundingVolumeHierarchy::calculateSplitCost(AxisAlignedBox parentBox, AxisAlignedBox firstChild, AxisAlignedBox secondChild ) {
+
+    return (calculateBoxVolume(firstChild) / calculateBoxVolume(parentBox)) + (calculateBoxVolume(secondChild) / calculateBoxVolume(parentBox));
+
+
+}
+
 
 
