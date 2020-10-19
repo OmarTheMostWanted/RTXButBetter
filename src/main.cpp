@@ -66,7 +66,6 @@ glm::vec3 phongSpecularOnly(const HitInfo hitInfo, const glm::vec3 lightPosition
     auto normalN = glm::normalize(hitInfo.normal);
     auto reflectedLight = glm::normalize(lightVec - (2 * (glm::dot(lightVec, normalN))) * normalN);
     return hitInfo.material.ks * glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess);
-
 }
 
 /**
@@ -130,15 +129,10 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
         }
 
     } else {
-
         if(glm::dot(inComingRay.direction , hitInfo.normal) > 0  ){
-
             rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
 
-
             HitInfo hitInfo1;
-
-
             auto intersection = bvh.intersect(rayToLight, hitInfo1);
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
@@ -185,8 +179,8 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         for (PointLight pointLight : scene.pointLights) {
 
             if (visibleToLight(ray , pointLight.position, hitInfo, bvh)) {
-                color += diffuseOnly(hitInfo, pointLight.position);
-                color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin);
+                color += diffuseOnly(hitInfo, pointLight.position) * pointLight.color;
+                color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin) * pointLight.color;
             }
         }
 
@@ -194,8 +188,8 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
             Ray rayToLight = {hitInfo.intersectionPoint,
                               glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
             if (visibleToLight(ray , sphericalLight.position, hitInfo, bvh)) {
-                color += diffuseOnly(hitInfo, sphericalLight.position);
-                color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin);
+                color += diffuseOnly(hitInfo, sphericalLight.position) * sphericalLight.color;
+                color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin) * sphericalLight.color;
             }
         }
 
