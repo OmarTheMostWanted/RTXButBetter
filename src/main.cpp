@@ -42,7 +42,6 @@ enum class ViewMode {
 //blue = ray from intersection point to the objects that block the light.
 //green = ray from the intersection point to the light if its not blocked.
 
-
 //Phong functions
 glm::vec3
 diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition) {
@@ -66,6 +65,38 @@ glm::vec3 phongSpecularOnly(const HitInfo hitInfo, const glm::vec3 lightPosition
     auto normalN = glm::normalize(hitInfo.normal);
     auto reflectedLight = glm::normalize(lightVec - (2 * (glm::dot(lightVec, normalN))) * normalN);
     return hitInfo.material.ks * glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess);
+}
+
+//Recursive ray tracing
+/**
+ * Create recursive ray
+ *
+ * @param ray The ray that has a intersection
+ * @param hitInfo
+ * @return
+ */
+glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, int levels, const glm::vec3 lightPosition, const glm::vec3& cameraPos) {
+    if (hitInfo.material.ks == glm::vec3{ 0.0f }) return glm::vec3(0.0f);
+    if (levels <= 0) return glm::vec3(0.0f);
+    glm::vec3 normalizedN;
+    if (glm::dot(ray.direction, hitInfo.normal) >= 0) {
+       normalizedN = glm::normalize(hitInfo.normal);
+    }
+    else {
+        normalizedN = -glm::normalize(hitInfo.normal);
+    }
+    glm::vec3 color = glm::vec3(0.0f);
+    HitInfo hitInfoRecursive;
+
+    glm::vec3 direction = ray.direction - 2 * glm::dot(ray.direction, normalizedN) * normalizedN;
+    Ray newRay = Ray{ hitInfo.intersectionPoint + 0.0000001f * direction, direction };
+
+    if (bvh.intersect(newRay, hitInfoRecursive)) {
+        drawRay(newRay, glm::vec3(1, 0, 1));
+        color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, cameraPos) + phongSpecularOnly(hitInfoRecursive, lightPosition, cameraPos) + diffuseOnly(hitInfoRecursive, lightPosition);
+    }
+    return color;
+
 }
 
 /**
@@ -181,6 +212,7 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
             if (visibleToLight(ray, pointLight.position, hitInfo, bvh)) {
                 color += diffuseOnly(hitInfo, pointLight.position) * pointLight.color;
                 color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin) * pointLight.color;
+                color += recursiveRay(ray, hitInfo, bvh, 2, pointLight.position, ray.origin) * pointLight.color;
             }
         }
 
@@ -190,6 +222,7 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
             if (visibleToLight(ray, sphericalLight.position, hitInfo, bvh)) {
                 color += diffuseOnly(hitInfo, sphericalLight.position) * sphericalLight.color;
                 color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin) * sphericalLight.color;
+                color += recursiveRay(ray, hitInfo, bvh, 2, sphericalLight.position, ray.origin) * sphericalLight.color;
             }
         }
 

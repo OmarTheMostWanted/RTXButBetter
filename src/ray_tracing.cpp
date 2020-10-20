@@ -206,3 +206,4 @@ bool intersectRayWithShape(const AxisAlignedBox &box, Ray &ray) {
         return true;
     }
 }
+
