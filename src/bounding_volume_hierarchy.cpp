@@ -2,11 +2,16 @@
 #include "draw.h"
 #include <iostream>
 #include <glm\geometric.hpp>
+#include <numeric>
 
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene, int numberOfSplits)
     : m_pScene(pScene), numberOfSplits(numberOfSplits)
 {
 
+    // for now do it only for one mesh
+    Node currentNode = createParentNode();
+
+    splitNode(currentNode, numberOfSplits);
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
@@ -28,7 +33,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 
 int BoundingVolumeHierarchy::numLevels() const
 {
-    return 5;
+    return numberOfSplits;
 }
 
 // Return true if something is hit, returns false otherwise. Only find hits if they are closer than t stored
@@ -56,8 +61,8 @@ hit = true;
     return hit;
 }
 
-// creates new AxisAlignedBox containing all of the vertices and returns it
-AxisAlignedBox BoundingVolumeHierarchy::createBoxFromVertices(std::vector<int> vertices)
+// creates new AxisAlignedBox containing all of the vertices with given indices and returns it
+AxisAlignedBox BoundingVolumeHierarchy::createBoxFromVertices(std::vector<int> indices)
 {
 
     int minX = INT_MAX;
@@ -68,7 +73,56 @@ AxisAlignedBox BoundingVolumeHierarchy::createBoxFromVertices(std::vector<int> v
     int maxY = INT_MIN;
     int maxZ = INT_MIN;
 
+    const std::vector<Vertex> vertices = m_pScene->meshes[0].vertices;
+
+    for (int i : indices) {
+
+        Vertex vertex = vertices[i];
+
+        if (minX > vertex.p[0]) {
+
+            minX = vertex.p[0];
+        }
+        if (maxX < vertex.p[0]) {
+
+            maxX = vertex.p[0];
+        }
+        if (minY > vertex.p[1]) {
+
+            minY = vertex.p[1];
+        }
+        if (maxY < vertex.p[1]) {
+
+            maxY = vertex.p[2];
+        }
+        if (minZ > vertex.p[2]) {
+
+            minZ = vertex.p[2];
+        }
+        if (maxZ < vertex.p[2]) {
+
+            maxZ = vertex.p[2];
+        }
+    }
+
+    return AxisAlignedBox { glm::vec3(minX, minY, minZ),  glm::vec3(maxX, maxY, maxZ) };
+}
+
+Node BoundingVolumeHierarchy::createParentNode() {
+
+    int minX = INT_MAX;
+    int minY = INT_MAX;
+    int minZ = INT_MAX;
+
+    int maxX = INT_MIN;
+    int maxY = INT_MIN;
+    int maxZ = INT_MIN;
+
+    int numberOfIndices = 0;
+
     for (const auto& mesh : m_pScene->meshes) {
+
+        numberOfIndices += mesh.vertices.size();
         for (const auto& vertex : mesh.vertices) {
 
             if (minX > vertex.p[0]) {
@@ -101,13 +155,15 @@ AxisAlignedBox BoundingVolumeHierarchy::createBoxFromVertices(std::vector<int> v
 
     AxisAlignedBox newBox{ glm::vec3(minX, minY, minZ),  glm::vec3(maxX, maxY, maxZ) };
 
-    return newBox;
+    std::vector<int> allIndices(numberOfIndices);
+    std::iota(begin(allIndices), end(allIndices), 0);
+
+    return Node {allIndices, 1, newBox, FLT_MAX};
 }
 
-// Creates a new node out of given vertices given as indices
+// Creates a new node out of given vertices with given indices
 Node BoundingVolumeHierarchy::createNodeFromVertices(std::vector<int> vertices)
 {
-
     Node newNode;
     newNode.box = createBoxFromVertices(vertices);
     newNode.indices = vertices; // this will be replaces with the indices of children nodes if the node turns out to be an interior node
@@ -129,7 +185,7 @@ Node BoundingVolumeHierarchy::createNodeFromVertices(std::vector<int> vertices, 
 }
 
 // Calculates the best splits along all the 3 axes
-void BoundingVolumeHierarchy::splitNode(Node& node) {
+void BoundingVolumeHierarchy::splitNode(Node& node, int remainingSplits) {
 
     int lowerX = node.box.lower[0];
     int higherX = node.box.upper[0];
@@ -165,6 +221,14 @@ void BoundingVolumeHierarchy::splitNode(Node& node) {
         compareCostsAndUpdate(node, resultingVerticesX);
         compareCostsAndUpdate(node, resultingVerticesY);
         compareCostsAndUpdate(node, resultingVerticesZ);
+    }
+
+    remainingSplits--;
+
+    if (remainingSplits > 0) {
+
+        splitNode(this->nodes[node.indices[0]], remainingSplits - 1);
+        splitNode(this->nodes[node.indices[1]], remainingSplits - 1);
     }
     
 }

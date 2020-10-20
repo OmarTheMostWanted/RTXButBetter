@@ -23,18 +23,15 @@ public:
 
     // Creates an AxisAlignedBoc out of given vertices, returns the created box
     AxisAlignedBox createBoxFromVertices(std::vector<int> vertices);
+    Node createParentNode();
    // Creates a new node out of given vertices and adds it to the list of nodesub the scene, return the created node
     Node createNodeFromVertices(std::vector<int> vertices);
     Node createNodeFromVertices(std::vector<int> vertices, AxisAlignedBox box);
 
-    // Splits the given axis so thath
-    void splitNode(Node& node);
+    // Splits the given node so that the split is the most profitable
+    void splitNode(Node& node, int remainingSplits);
 
     void compareCostsAndUpdate(Node& parentNode, std::vector<std::vector<int>> dividedVertices);
-
-    void splitNodeX(Node& node);
-    void splitNodeY(Node& node);
-    void splitNodeZ(Node& node);
 
     std::vector<std::vector<int>> divideByPlane(Node node, glm::vec3 normal, glm::vec3 point);
 
