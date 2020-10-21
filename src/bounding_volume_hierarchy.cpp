@@ -10,9 +10,14 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
 {
 
     // for now do it only for one mesh
-    Node& currentNode = createParentNode();
+    for (int i = 0; i < pScene->meshes.size(); i++) {
 
-    splitNode(0, NUMBER_OF_LEVELS);
+        createParentNode(i);
+
+        splitNode(i, NUMBER_OF_LEVELS);
+
+    }
+    
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
@@ -23,7 +28,11 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 {
     // level 0 is the parent node
 
-    drawNode(0, level);
+    for (int i = 0; i < parentNodes.size(); i++) {
+
+        drawNode(i, level);
+    }
+    
     // Draw the AABB as a transparent green box.
     //AxisAlignedBox aabb{ glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f) };
     //drawShape(aabb, DrawMode::Filled, glm::vec3(0.0f, 1.0f, 0.0f), 0.2f);
@@ -36,6 +45,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 
 void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
 
+    
     Node& node = this->nodes[nodeIndex];
     if (remainingLevels == 0) {
 
@@ -65,6 +75,11 @@ int BoundingVolumeHierarchy::numLevels() const
 bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 {
     bool hit = false;
+
+    for (int i = 0; i < parentNodes.size(); i++) {
+
+
+    }
     // Intersect with all triangles of all meshes.
     for (const auto& mesh : m_pScene->meshes) {
         for (const auto& tri : mesh.triangles) {
@@ -81,6 +96,11 @@ hit = true;
     for (const auto& sphere : m_pScene->spheres)
         hit |= intersectRayWithShape(sphere, ray, hitInfo);
     return hit;
+}
+
+bool BoundingVolumeHierarchy::intersectWithNode(int nodeIndex, Ray& ray, HitInfo& hitInfo) const {
+
+    return false;
 }
 
 
@@ -138,7 +158,7 @@ AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> 
 }
 
 // Create a parent node and add it to the main vector of vertices
-Node& BoundingVolumeHierarchy::createParentNode() {
+Node& BoundingVolumeHierarchy::createParentNode(int meshNumber) {
 
     float minX = INT_MAX;
     float minY = INT_MAX;
@@ -148,8 +168,7 @@ Node& BoundingVolumeHierarchy::createParentNode() {
     float maxY = INT_MIN;
     float maxZ = INT_MIN;
 
-
-    for (const auto& mesh : m_pScene->meshes) {
+    Mesh mesh = this->m_pScene->meshes[meshNumber];
 
         for (const auto& vertex : mesh.vertices) {
 
@@ -177,8 +196,7 @@ Node& BoundingVolumeHierarchy::createParentNode() {
 
                 maxZ = vertex.p[2];
             }
-
-        }
+        
     }
 
     AxisAlignedBox newBox;
@@ -190,6 +208,7 @@ Node& BoundingVolumeHierarchy::createParentNode() {
 
     Node parentNode{ allIndices, 1, newBox, FLT_MAX };
     nodes.push_back(parentNode);
+    parentNodes.push_back(parentNode);
 
     return parentNode;
 }
@@ -228,6 +247,7 @@ void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
 
         return;
     }
+
 
     float lowerX = node.box.lower[0];
     float higherX = node.box.upper[0];
@@ -274,7 +294,20 @@ void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
         compareCostsAndUpdate(nodeIndex, resultingTrianglesY[i]);
         compareCostsAndUpdate(nodeIndex, resultingTrianglesZ[i]);
     }
+
+    Node& parentNode = nodes[nodeIndex];
+    Node& firstChild = nodes[nodes[nodeIndex].indices[0]];
+    Node& secondChild = nodes[nodes[nodeIndex].indices[0]];
+
+    if (nodes[nodeIndex].box.lower == firstChild.box.lower && nodes[nodeIndex].box.upper == firstChild.box.upper) {
+
+        return;
+    }
     
+    if (nodes[nodeIndex].box.lower == secondChild.box.lower && nodes[nodeIndex].box.upper == secondChild.box.upper) {
+
+        return;
+    }
 
     remainingSplits--;
 

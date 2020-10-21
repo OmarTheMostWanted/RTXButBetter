@@ -11,14 +11,14 @@
 struct Node;
 
 const int SPLITS_PER_NODE = 3; // number of splits being made for each AxisAlignedBox
-const int NUMBER_OF_LEVELS = 20;
+const int NUMBER_OF_LEVELS = 10;
 
 class BoundingVolumeHierarchy {
 public:
     BoundingVolumeHierarchy(Scene* pScene);
 
     std::vector<Node> nodes;
-
+    std::vector<Node> parentNodes;
     // Use this function to visualize your BVH. This can be useful for debugging.
     void debugDraw(int level);
     void drawNode(int NodeIndex, int remainingLevels);
@@ -29,9 +29,11 @@ public:
     // is on the correct side of the origin (the new t >= 0).
     bool intersect(Ray& ray, HitInfo& hitInfo) const;
 
+    bool intersectWithNode(int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
+
     // Creates an AxisAlignedBoc out of given triangles, returns the created box
     AxisAlignedBox createBoxFromTriangles(std::vector<int> triangles);
-    Node& createParentNode();
+    Node& createParentNode(int meshNumber);
     Node createNodeFromTriangles(std::vector<int> triangles);
     Node createNodeFromTriangles(std::vector<int> triangles, AxisAlignedBox& box);
    // Creates a new node out of given vertices and adds it to the list of nodesub the scene, return the created node
