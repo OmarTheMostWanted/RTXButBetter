@@ -89,7 +89,7 @@ int main(int argc, char** argv)
     SceneType sceneType { SceneType::SingleTriangle };
     std::optional<Ray> optDebugRay;
     Scene scene = loadScene(sceneType, dataPath);
-    BoundingVolumeHierarchy bvh { &scene, 4 };
+    BoundingVolumeHierarchy bvh { &scene};
 
     int bvhDebugLevel = 0;
     bool debugBVH { false };
@@ -122,7 +122,7 @@ int main(int argc, char** argv)
             if (ImGui::Combo("Scenes", reinterpret_cast<int*>(&sceneType), items.data(), int(items.size()))) {
                 optDebugRay.reset();
                 scene = loadScene(sceneType, dataPath);
-                bvh = BoundingVolumeHierarchy(&scene, 4);
+                bvh = BoundingVolumeHierarchy(&scene);
                 if (optDebugRay) {
                     HitInfo dummy {};
                     bvh.intersect(*optDebugRay, dummy);
