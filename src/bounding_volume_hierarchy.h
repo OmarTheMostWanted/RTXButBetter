@@ -10,8 +10,8 @@
 
 struct Node;
 
-const int SPLITS_PER_NODE = 2; // number of splits being made for each AxisAlignedBox
-const int NUMBER_OF_LEVELS = 4;
+const int SPLITS_PER_NODE = 3; // number of splits being made for each AxisAlignedBox
+const int NUMBER_OF_LEVELS = 20;
 
 class BoundingVolumeHierarchy {
 public:
@@ -21,7 +21,7 @@ public:
 
     // Use this function to visualize your BVH. This can be useful for debugging.
     void debugDraw(int level);
-    void drawNode(Node& node, int remainingLevels);
+    void drawNode(int NodeIndex, int remainingLevels);
     int numLevels() const;
 
     // Return true if something is hit, returns false otherwise.
@@ -40,6 +40,8 @@ public:
     void splitNode(int nodeIndex, int remainingSplits);
 
     void compareCostsAndUpdate(int nodeIndex, std::vector<std::vector<int>> dividedVertices);
+
+    void replaceChildren(int parentNodeIndex, Node& firstChild, Node& secondChild);
 
     std::vector<std::vector<int>> divideByPlane(int nodeIndex, glm::vec3 normal, glm::vec3 point);
 
