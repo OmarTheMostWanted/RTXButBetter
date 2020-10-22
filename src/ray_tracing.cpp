@@ -82,7 +82,7 @@ Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v
 /// Input: the three vertices of the triangle
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
 bool
-intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo) {
+intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo, Material& material) {
     Plane plane = trianglePlane(v0, v1, v2);
     glm::vec3 pointOnPlane = v0;
     if (intersectRayWithPlane(plane, ray)) {
@@ -103,6 +103,7 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
 
                     hitInfo.intersectionPoint = intersectionPoint;
                     hitInfo.normal = plane.normal;
+                    hitInfo.material = material;
                     return true;
 
                 }
@@ -201,9 +202,37 @@ bool intersectRayWithShape(const AxisAlignedBox &box, Ray &ray) {
             if (ray.t > tOutGlobal) {
                 ray.t = tOutGlobal;
             }
-        } else if (tInGlobal < ray.t) //rays origin is behind the box. check if this box was closer.
+        }
+        else if (tInGlobal < ray.t) { //rays origin is behind the box. check if this box was closer.
             ray.t = tInGlobal;
+        }
         return true;
     }
+}
+
+bool intersectRayWithNodeBox(const AxisAlignedBox& box, Ray& ray) {
+    float tXMin = (box.lower.x - ray.origin.x) / ray.direction.x;
+    float tYMin = (box.lower.y - ray.origin.y) / ray.direction.y;
+    float tZMin = (box.lower.z - ray.origin.z) / ray.direction.z;
+
+    float tXMax = (box.upper.x - ray.origin.x) / ray.direction.x;
+    float tYMax = (box.upper.y - ray.origin.y) / ray.direction.y;
+    float tZMax = (box.upper.z - ray.origin.z) / ray.direction.z;
+
+    float tInX = glm::min(tXMin, tXMax);
+    float tInY = glm::min(tYMin, tYMax);
+    float tInZ = glm::min(tZMin, tZMax);
+
+    float tOutX = glm::max(tXMin, tXMax);
+    float tOutY = glm::max(tYMin, tYMax);
+    float tOutZ = glm::max(tZMin, tZMax);
+
+    float tInGlobal = glm::max(tInX, glm::max(tInY, tInZ));
+    float tOutGlobal = glm::min(tOutX, glm::min(tOutY, tOutZ));
+
+    if (tInGlobal > tOutGlobal || tOutGlobal < 0) return false; //ray does not cross or is in front of the box
+
+    return true;
+    
 }
 

@@ -106,18 +106,21 @@ bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIn
 
     Node currentNode = nodes[nodeIndex];
 
-    bool hit = false;
+    if (!intersectRayWithNodeBox(currentNode.box, ray)) {
+
+        return false;
+    }
 
     if (currentNode.type == true) {
 
         return intersectWithTriangles(parentNodeIndex, nodeIndex, ray, hitInfo);
     }
 
-    if (intersectRayWithShape(currentNode.box, ray)) {
+    bool hit = false;
 
-        hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[0], ray, hitInfo);
-        hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[1], ray, hitInfo);
-    }
+    hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[0], ray, hitInfo);
+    hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[1], ray, hitInfo);
+   
     return hit;
 }
 
@@ -138,7 +141,8 @@ bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int no
 
     for (int i : leaf.indices) {
 
-        result = result | intersectRayWithTriangle(vertices[triangles[i][0]].p, vertices[triangles[i][1]].p, vertices[triangles[i][2]].p, ray, hitInfo);
+        result = result | intersectRayWithTriangle(vertices[triangles[i][0]].p, vertices[triangles[i][1]].p, vertices[triangles[i][2]].p,
+            ray, hitInfo, m_pScene->meshes[parentNodeIndex].material);
     }
 
     return result;
