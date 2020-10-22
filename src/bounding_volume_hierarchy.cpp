@@ -75,11 +75,6 @@ int BoundingVolumeHierarchy::numLevels() const
 bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 {
     bool hit = false;
-
-    for (int i = 0; i < parentNodes.size(); i++) {
-
-
-    }
     // Intersect with all triangles of all meshes.
     for (const auto& mesh : m_pScene->meshes) {
         for (const auto& tri : mesh.triangles) {
@@ -88,7 +83,7 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
             const auto v2 = mesh.vertices[tri[2]];
             if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
                 hitInfo.material = mesh.material;
-hit = true;
+                hit = true;
             }
         }
     }
@@ -98,12 +93,64 @@ hit = true;
     return hit;
 }
 
-bool BoundingVolumeHierarchy::intersectWithNode(int nodeIndex, Ray& ray, HitInfo& hitInfo) const {
+bool BoundingVolumeHierarchy::intersectBVH(Ray& ray, HitInfo& hitInfo)
+{
+    bool hit = false;
 
-    return false;
+    //for (int i = 0; i < parentNodes.size(); i++) {
+
+    //    return intersectWithNodes(i, i, ray, hitInfo);
+    //}
+    // Intersect with all triangles of all meshes.
+    for (const auto& mesh : m_pScene->meshes) {
+        for (const auto& tri : mesh.triangles) {
+            const auto v0 = mesh.vertices[tri[0]];
+            const auto v1 = mesh.vertices[tri[1]];
+            const auto v2 = mesh.vertices[tri[2]];
+            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
+                hitInfo.material = mesh.material;
+                hit = true;
+            }
+        }
+    }
+    // Intersect with spheres.
+    for (const auto& sphere : m_pScene->spheres)
+        hit |= intersectRayWithShape(sphere, ray, hitInfo);
+    return hit;
 }
 
 
+bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo){
+
+    Node& currentNode = nodes[nodeIndex];
+
+    if (currentNode.type == true) {
+
+        return intersectWithTriangles(parentNodeIndex, nodeIndex, ray, hitInfo);
+    }
+
+    if (intersectRayWithShape(currentNode.box, ray)) {
+
+        return intersectWithNodes(parentNodeIndex, currentNode.indices[0], ray, hitInfo);
+        return intersectWithNodes(parentNodeIndex, currentNode.indices[1], ray, hitInfo);
+    }
+    return false;
+}
+
+bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) {
+
+    Node& leaf = nodes[nodeIndex];
+    std::vector<Vertex>& vertices = this->m_pScene->meshes[parentNodeIndex].vertices;
+    std::vector<Triangle>& triangles = this->m_pScene->meshes[parentNodeIndex].triangles;
+    bool result = 0;
+
+    for (int i : leaf.indices) {
+
+        result = result | intersectRayWithTriangle(vertices[triangles[i][0]].p, vertices[triangles[i][1]].p, vertices[triangles[i][2]].p, ray, hitInfo);
+    }
+
+    return result;
+}
 // creates new AxisAlignedBox containing all of the vertices with given indices and returns it
 AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> triangles)
 {

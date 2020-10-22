@@ -29,8 +29,10 @@ public:
     // is on the correct side of the origin (the new t >= 0).
     bool intersect(Ray& ray, HitInfo& hitInfo) const;
 
-    bool intersectWithNode(int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
+    bool intersectBVH(Ray& ray, HitInfo& hitInfo);
 
+    bool intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo);
+    bool intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo);
     // Creates an AxisAlignedBoc out of given triangles, returns the created box
     AxisAlignedBox createBoxFromTriangles(std::vector<int> triangles);
     Node& createParentNode(int meshNumber);
