@@ -183,7 +183,7 @@ glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVol
     HitInfo hitInfoRecursive;
 
     glm::vec3 direction = glm::normalize(ray.direction - 2 * glm::dot(ray.direction, normalizedN) * normalizedN);
-    Ray newRay = Ray{ hitInfo.intersectionPoint + 0.1f * direction, direction };
+    Ray newRay = Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
 
     if (bvh.intersect(newRay, hitInfoRecursive)) {
         drawRay(newRay, glm::vec3(1, 0, 1));
