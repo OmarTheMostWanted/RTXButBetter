@@ -5,11 +5,12 @@
 #include <numeric>
 #include <set>
 
+// Initializes the BVH class.
+// Creates all the parent nodes - one parent node for each mesh.
+// Calls the recursive function splitNode for each of the parent nodes which then splits the node according to the number of levels.
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
     : m_pScene(pScene)
 {
-
-    // for now do it only for one mesh
     for (int i = 0; i < pScene->meshes.size(); i++) {
 
         createParentNode(i);
@@ -17,32 +18,22 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
         splitNode(i, NUMBER_OF_LEVELS);
 
     }
-    
-    // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
-// Use this function to visualize your BVH. This can be useful for debugging. Use the functions in
-// draw.h to draw the various shapes. We have extended the AABB draw functions to support wireframe
-// mode, arbitrary colors and transparency.
+// Starts drawing of the boxes contained in the BVH.
+// Only nodes existing at the particural level will be displayed.
 void BoundingVolumeHierarchy::debugDraw(int level)
 {
-    // level 0 is the parent node
-
+    // First nodes in the nodes vector are the parent nodes.
     for (int i = 0; i < parentNodes.size(); i++) {
 
         drawNode(i, level);
     }
-    
-    // Draw the AABB as a transparent green box.
-    //AxisAlignedBox aabb{ glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f) };
-    //drawShape(aabb, DrawMode::Filled, glm::vec3(0.0f, 1.0f, 0.0f), 0.2f);
-
-    // Draw the AABB as a (white) wireframe box.
-    //AxisAlignedBox aabb { glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f) };
-    //drawAABB(aabb, DrawMode::Wireframe);
-    //drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 0.1);
 }
 
+// Draws a box contained in a node if the level corresponds to the level provided in the debugDraw method.
+// Otherwise delves deeper into the BVH tree to find the node corresponding to the given level.
+// Nodes which are leaf nodes and do not reside on a given level are ignored.
 void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
 
     
@@ -63,6 +54,7 @@ void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
     
 }
 
+// Returns number of levels. The more levels the more nodes in the BVH.
 int BoundingVolumeHierarchy::numLevels() const
 {
     return NUMBER_OF_LEVELS;
@@ -93,33 +85,21 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
     return hit;
 }
 
+// Checks intersection with all nodes and returns true if any intersection occurs.
+// Calls intersectWithNodes function recursively.
 bool BoundingVolumeHierarchy::intersectBVH(Ray& ray, HitInfo& hitInfo)
 {
     bool hit = false;
 
-    //for (int i = 0; i < parentNodes.size(); i++) {
+    for (int i = 0; i < parentNodes.size(); i++) {
 
-    //    return intersectWithNodes(i, i, ray, hitInfo);
-    //}
-    // Intersect with all triangles of all meshes.
-    for (const auto& mesh : m_pScene->meshes) {
-        for (const auto& tri : mesh.triangles) {
-            const auto v0 = mesh.vertices[tri[0]];
-            const auto v1 = mesh.vertices[tri[1]];
-            const auto v2 = mesh.vertices[tri[2]];
-            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
-                hitInfo.material = mesh.material;
-                hit = true;
-            }
-        }
+    return intersectWithNodes(i, i, ray, hitInfo);
     }
-    // Intersect with spheres.
-    for (const auto& sphere : m_pScene->spheres)
-        hit |= intersectRayWithShape(sphere, ray, hitInfo);
-    return hit;
 }
 
 
+// Recursively checks if a ray intersects with nodes.
+// Return true if it does. Calls intersectWithTriangles if the nodes ia a leaf node.
 bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo){
 
     Node& currentNode = nodes[nodeIndex];
@@ -137,9 +117,17 @@ bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIn
     return false;
 }
 
+// Checks intersection of a ray with all the triangles contained in a leaf node.
+// Returns true if the intersection occurs.
 bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) {
 
     Node& leaf = nodes[nodeIndex];
+
+    if (leaf.type == false) {
+
+        return false;
+    }
+
     std::vector<Vertex>& vertices = this->m_pScene->meshes[parentNodeIndex].vertices;
     std::vector<Triangle>& triangles = this->m_pScene->meshes[parentNodeIndex].triangles;
     bool result = 0;
@@ -151,7 +139,8 @@ bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int no
 
     return result;
 }
-// creates new AxisAlignedBox containing all of the vertices with given indices and returns it
+
+// Creates new AxisAlignedBox containing all of the vertices with given indices and returns it.
 AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> triangles)
 {
 
@@ -204,7 +193,7 @@ AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> 
     return AxisAlignedBox { glm::vec3(minX, minY, minZ),  glm::vec3(maxX, maxY, maxZ) };
 }
 
-// Create a parent node and add it to the main vector of vertices
+// Create a parent node and add it to the main vector of vertices.
 Node& BoundingVolumeHierarchy::createParentNode(int meshNumber) {
 
     float minX = INT_MAX;
@@ -260,7 +249,7 @@ Node& BoundingVolumeHierarchy::createParentNode(int meshNumber) {
     return parentNode;
 }
 
-// Creates a new node out of given vertices with given indices
+// Creates a new node out of given vertices with given indices.
 Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles)
 {
     Node newNode;
@@ -272,7 +261,7 @@ Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles
     return newNode;
 }
 
-// Creates a new node out of given vertices given as indices and an already made box
+// Creates a new node out of given vertices given as indices and an already made box.
 Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles, AxisAlignedBox& box)
 {
 
@@ -285,7 +274,8 @@ Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles
     return newNode;
 }
 
-// Calculates the best splits along all the 3 axes
+// Calculates the best splits of a node along all the 3 axes.
+// Each axis is being checked for SPLITS_PER_NODE - 1 different plane divisors.
 void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
 
 
@@ -387,6 +377,7 @@ void BoundingVolumeHierarchy::compareCostsAndUpdate(int nodeIndex, std::vector<s
     }
 }
 
+// Replaces children of a node. Updates the content of the main nodes vector with the newly added nodes.
 void BoundingVolumeHierarchy::replaceChildren(int parentNodeIndex, Node& firstChild, Node& secondChild) {
 
     Node* parentNode = &this->nodes[parentNodeIndex];
@@ -410,9 +401,9 @@ void BoundingVolumeHierarchy::replaceChildren(int parentNodeIndex, Node& firstCh
 
 }
 
-// Divides the node along the given plane
-// Plane is characterised by a normal and any point
-// Returns vector of two vectors containing indicies of two groups of verticies resulting from the split
+// Divides the node along the given plane.
+// Plane is characterised by a normal and any point.
+// Returns vector of two vectors containing indicies of two groups of verticies resulting from the split.
 std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeIndex, glm::vec3 normal, glm::vec3 point) {
 
     Node* node = &nodes[nodeIndex];
@@ -455,7 +446,7 @@ std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeInd
 
 }
 
-// Calculates the volume of the given box
+// Calculates the volume of a given box.
 float BoundingVolumeHierarchy::calculateBoxVolume(AxisAlignedBox& box) {
 
     return (box.upper[0] - box.lower[0]) * (box.upper[1] - box.lower[1]) * (box.upper[2] - box.lower[2]);
@@ -480,6 +471,7 @@ float BoundingVolumeHierarchy::calculateSplitCost(AxisAlignedBox parentBox, Axis
 }
 
 
+// Collects indices of all vertices that triangles with given indices contain and returns them as a set.
 std::set<int>  BoundingVolumeHierarchy::retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices) {
 
     const std::vector<glm::uvec3> triangles = m_pScene->meshes[0].triangles;
