@@ -93,8 +93,10 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 
     for (int i = 0; i < parentNodes.size(); i++) {
 
-    return intersectWithNodes(i, i, ray, hitInfo);
+    hit = hit | intersectWithNodes(i, i, ray, hitInfo);
     }
+
+    return hit;
 }
 
 
@@ -104,6 +106,8 @@ bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIn
 
     Node currentNode = nodes[nodeIndex];
 
+    bool hit = false;
+
     if (currentNode.type == true) {
 
         return intersectWithTriangles(parentNodeIndex, nodeIndex, ray, hitInfo);
@@ -111,10 +115,10 @@ bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIn
 
     if (intersectRayWithShape(currentNode.box, ray)) {
 
-        return intersectWithNodes(parentNodeIndex, currentNode.indices[0], ray, hitInfo);
-        return intersectWithNodes(parentNodeIndex, currentNode.indices[1], ray, hitInfo);
+        hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[0], ray, hitInfo);
+        hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[1], ray, hitInfo);
     }
-    return false;
+    return hit;
 }
 
 // Checks intersection of a ray with all the triangles contained in a leaf node.
