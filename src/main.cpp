@@ -36,6 +36,7 @@ enum class ViewMode {
 };
 
 
+const float origin_shift = 0.0001f;
 
 //debug ray colors:
 //white = ray to point to intersection point if exists.
@@ -89,7 +90,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
         //the ray is at the same side as the light relative to the normal.
         if(glm::dot(inComingRay.direction , hitInfo.normal) < 0  ){
 
-            rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
+            rayToLight.origin = rayToLight.origin + (rayToLight.direction * origin_shift);
 
 
             HitInfo hitInfo1;
@@ -130,7 +131,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
     } else {
         if(glm::dot(inComingRay.direction , hitInfo.normal) > 0  ){
-            rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
+            rayToLight.origin = rayToLight.origin + (rayToLight.direction * origin_shift);
 
             HitInfo hitInfo1;
             auto intersection = bvh.intersect(rayToLight, hitInfo1);
@@ -215,7 +216,9 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         for (PointLight pointLight : scene.pointLights) {
 
             if (visibleToLight(ray, pointLight.position, hitInfo, bvh)) {
+
                 color += diffuseOnly(hitInfo, pointLight.position) * pointLight.color;
+
                 color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin) * pointLight.color;
                 
             }
@@ -233,8 +236,6 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
             color += recursiveRay(ray, hitInfo, bvh, 4, sphericalLight.position, ray.origin) * sphericalLight.color;
         }
 
-
-//        return hitInfo.material.kd;
         return color;
 
 //        // Set the color of the pixel to white if the ray hits.

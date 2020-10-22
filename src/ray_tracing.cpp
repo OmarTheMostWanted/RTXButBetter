@@ -147,6 +147,12 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
 
             if (ray.t > t2) {
                 ray.t = t2;
+
+                hitInfo.material = sphere.material;
+                hitInfo.intersectionPoint = ray.origin + (ray.t * ray.direction);
+                hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
+
+
                 return true;
             }
 
@@ -158,6 +164,10 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
         if (t1 >= 0 && t2 < 0) { //t2 is the exit point
             if (ray.t > t1) {
                 ray.t = t1;
+
+                hitInfo.material = sphere.material;
+                hitInfo.intersectionPoint = ray.origin + (ray.t * ray.direction);
+                hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
                 return true;
             }
 
