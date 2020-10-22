@@ -5,6 +5,10 @@ struct HitInfo {
     glm::vec3 normal;
     Material material;
     glm::vec3 intersectionPoint;
+    //corneres of the triangle that get hit
+    glm::vec3 v0;
+    glm::vec3 v1;
+    glm::vec3 v2;
 };
 
 bool intersectRayWithPlane(const Plane& plane, Ray& ray);
