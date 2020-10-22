@@ -26,9 +26,9 @@ DISABLE_WARNINGS_POP()
 #endif
 
 // This is the main application. The code in here does not need to be modified.
-constexpr glm::ivec2 windowResolution { 800, 800 };
-const std::filesystem::path dataPath { DATA_DIR };
-const std::filesystem::path outputPath { OUTPUT_DIR };
+constexpr glm::ivec2 windowResolution{800, 800};
+const std::filesystem::path dataPath{DATA_DIR};
+const std::filesystem::path outputPath{OUTPUT_DIR};
 
 enum class ViewMode {
     Rasterization = 0,
@@ -36,15 +36,209 @@ enum class ViewMode {
 };
 
 
+
+//debug ray colors:
+//white = ray to point to intersection point if exists.
+//blue = ray from intersection point to the objects that block the light.
+//green = ray from the intersection point to the light if its not blocked.
+
+//Phong functions
+glm::vec3
+diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition) {
+    auto cosAngle = glm::dot(hitInfo.normal, glm::normalize(lightPosition - hitInfo.intersectionPoint));
+    if (cosAngle > 0) {
+        auto res = hitInfo.material.kd * cosAngle;
+        return res;
+    } else return glm::vec3(0);
+}
+
+
+glm::vec3 phongSpecularOnly(const HitInfo hitInfo, const glm::vec3 lightPosition, const glm::vec3 &cameraPos) {
+
+    float cosNormalLight = glm::dot(glm::normalize(lightPosition - hitInfo.intersectionPoint), hitInfo.normal);
+
+    if (cosNormalLight < 0) {
+        return glm::vec3(0);
+    }
+    auto lightVec = glm::normalize(hitInfo.intersectionPoint - lightPosition);
+    auto camVec = glm::normalize(cameraPos - hitInfo.intersectionPoint);
+    auto normalN = glm::normalize(hitInfo.normal);
+    auto reflectedLight = glm::normalize(lightVec - (2 * (glm::dot(lightVec, normalN))) * normalN);
+    return hitInfo.material.ks * glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess);
+}
+
+
+/**
+ * Check if the point is visible from the light scours.
+ *
+ * @param ray From the point to the light
+ * @param lightPosition
+ * @param hitInfo
+ * @param bvh
+ * @return
+ */
+bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh) {
+
+    Ray rayToLight = {hitInfo.intersectionPoint, glm::normalize(lightPosition - hitInfo.intersectionPoint) };
+
+
+    auto cosLightNormal = glm::dot(rayToLight.direction , hitInfo.normal);
+    //make sure that the ray hits the lit side of the mesh.
+    if(cosLightNormal >= 0 ){
+
+        //the ray is at the same side as the light relative to the normal.
+        if(glm::dot(inComingRay.direction , hitInfo.normal) < 0  ){
+
+            rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
+
+
+            HitInfo hitInfo1;
+
+
+            auto intersection = bvh.intersect(rayToLight, hitInfo1);
+
+            float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
+
+
+            if (intersection) {
+
+                float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
+
+                //make sure if the there is an object closer to the point than the light ie the light is blocked
+                if (fromPointToIntersection < fromLightToPoint) {
+//                    std::cout << "Light Blocked"<< std::endl;
+                    drawRay(rayToLight, glm::vec3(0 , 0 , 1));
+
+//                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
+
+//                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
+
+                    return false;
+                }
+            }
+//            std::cout << "Light not blocked "<< std::endl;
+
+            rayToLight.t = fromLightToPoint;
+            drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
+            return true;
+
+
+        } else {
+//            std::cout << "light is behind the mesh" << std::endl;
+            return false;
+        }
+
+    } else {
+        if(glm::dot(inComingRay.direction , hitInfo.normal) > 0  ){
+            rayToLight.origin = rayToLight.origin + (rayToLight.direction * 0.00001f);
+
+            HitInfo hitInfo1;
+            auto intersection = bvh.intersect(rayToLight, hitInfo1);
+
+            float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
+
+
+            if (intersection) {
+
+                float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
+
+                if (fromPointToIntersection < fromLightToPoint) {
+//                    std::cout << "Light Blocked"<< std::endl;
+//                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
+
+//                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
+
+                    drawRay(rayToLight, glm::vec3(0 , 0 , 1));
+                    return false;
+                }
+            }
+            rayToLight.t = fromLightToPoint;
+            drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+//Recursive ray tracing
+/**
+ * Create recursive ray
+ *
+ * @param ray The ray that has a intersection
+ * @param hitInfo
+ * @return
+ */
+glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, int levels, const glm::vec3 lightPosition, const glm::vec3& cameraPos) {
+    if (hitInfo.material.ks == glm::vec3{ 0.0f }) return glm::vec3(0.0f);
+    if (levels <= 0) return glm::vec3(0.0f);
+    glm::vec3 normalizedN;
+    if (glm::dot(ray.direction, hitInfo.normal) >= 0) {
+        normalizedN = glm::normalize(hitInfo.normal);
+    }
+    else {
+        normalizedN = -glm::normalize(hitInfo.normal);
+    }
+    glm::vec3 color = glm::vec3(0.0f);
+    HitInfo hitInfoRecursive;
+
+    glm::vec3 direction = glm::normalize(ray.direction - 2 * glm::dot(ray.direction, normalizedN) * normalizedN);
+    Ray newRay = Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
+
+    if (bvh.intersect(newRay, hitInfoRecursive)) {
+        drawRay(newRay, glm::vec3(1, 0, 1));
+        if (visibleToLight(newRay, lightPosition, hitInfoRecursive, bvh)) {
+            color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, cameraPos) + phongSpecularOnly(hitInfoRecursive, lightPosition, cameraPos) + diffuseOnly(hitInfoRecursive, lightPosition);
+
+        }
+    }
+    return color;
+
+}
+
+
+
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
-static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy& bvh, Ray ray)
-{
+static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray) {
+
     HitInfo hitInfo;
+
+
     if (bvh.intersect(ray, hitInfo)) {
-        // Draw a white debug ray.
+
+//         Draw a white debug ray.
         drawRay(ray, glm::vec3(1.0f));
-        // Set the color of the pixel to white if the ray hits.
-        return glm::vec3(1.0f);
+
+        auto color = glm::vec3(0.0f);
+        //shading
+        // compute shading for each light source
+        for (PointLight pointLight : scene.pointLights) {
+
+            if (visibleToLight(ray, pointLight.position, hitInfo, bvh)) {
+                color += diffuseOnly(hitInfo, pointLight.position) * pointLight.color;
+                color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin) * pointLight.color;
+                
+            }
+            color += recursiveRay(ray, hitInfo, bvh, 4, pointLight.position, ray.origin) * pointLight.color;
+        }
+
+        for (SphericalLight sphericalLight : scene.sphericalLight) {
+            Ray rayToLight = {hitInfo.intersectionPoint,
+                              glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
+            if (visibleToLight(ray, sphericalLight.position, hitInfo, bvh)) {
+                color += diffuseOnly(hitInfo, sphericalLight.position) * sphericalLight.color;
+                color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin) * sphericalLight.color;
+                
+            }
+            color += recursiveRay(ray, hitInfo, bvh, 4, sphericalLight.position, ray.origin) * sphericalLight.color;
+        }
+
+
+//        return hitInfo.material.kd;
+        return color;
+
+//        // Set the color of the pixel to white if the ray hits.
+//        return glm::vec3(1.0f);
     } else {
         // Draw a red debug ray if the ray missed.
         drawRay(ray, glm::vec3(1.0f, 0.0f, 0.0f));
@@ -53,21 +247,23 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
     }
 }
 
-static void setOpenGLMatrices(const Trackball& camera);
-static void renderOpenGL(const Scene& scene, const Trackball& camera, int selectedLight);
+
+static void setOpenGLMatrices(const Trackball &camera);
+
+static void renderOpenGL(const Scene &scene, const Trackball &camera, int selectedLight);
 
 // This is the main rendering function. You are free to change this function in any way (including the function signature).
-static void renderRayTracing(const Scene& scene, const Trackball& camera, const BoundingVolumeHierarchy& bvh, Screen& screen)
-{
+static void
+renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolumeHierarchy &bvh, Screen &screen) {
 #ifdef USE_OPENMP
 #pragma omp parallel for
 #endif
     for (int y = 0; y < windowResolution.y; y++) {
         for (int x = 0; x != windowResolution.x; x++) {
             // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
-            const glm::vec2 normalizedPixelPos {
-                float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f
+            const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f
             };
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             screen.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
