@@ -64,30 +64,30 @@ int BoundingVolumeHierarchy::numLevels() const
 // in the ray and if the intersection is on the correct side of the origin (the new t >= 0). Replace the code
 // by a bounding volume hierarchy acceleration structure as described in the assignment. You can change any
 // file you like, including bounding_volume_hierarchy.h .
-bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
-{
-    bool hit = false;
-    // Intersect with all triangles of all meshes.
-    for (const auto& mesh : m_pScene->meshes) {
-        for (const auto& tri : mesh.triangles) {
-            const auto v0 = mesh.vertices[tri[0]];
-            const auto v1 = mesh.vertices[tri[1]];
-            const auto v2 = mesh.vertices[tri[2]];
-            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
-                hitInfo.material = mesh.material;
-                hit = true;
-            }
-        }
-    }
-    // Intersect with spheres.
-    for (const auto& sphere : m_pScene->spheres)
-        hit |= intersectRayWithShape(sphere, ray, hitInfo);
-    return hit;
-}
+//bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
+//{
+//    bool hit = false;
+//    // Intersect with all triangles of all meshes.
+//    for (const auto& mesh : m_pScene->meshes) {
+//        for (const auto& tri : mesh.triangles) {
+//            const auto v0 = mesh.vertices[tri[0]];
+//            const auto v1 = mesh.vertices[tri[1]];
+//            const auto v2 = mesh.vertices[tri[2]];
+//            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
+//                hitInfo.material = mesh.material;
+//                hit = true;
+//            }
+//        }
+//    }
+//    // Intersect with spheres.
+//    for (const auto& sphere : m_pScene->spheres)
+//        hit |= intersectRayWithShape(sphere, ray, hitInfo);
+//    return hit;
+//}
 
 // Checks intersection with all nodes and returns true if any intersection occurs.
 // Calls intersectWithNodes function recursively.
-bool BoundingVolumeHierarchy::intersectBVH(Ray& ray, HitInfo& hitInfo)
+bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 {
     bool hit = false;
 
@@ -100,9 +100,9 @@ bool BoundingVolumeHierarchy::intersectBVH(Ray& ray, HitInfo& hitInfo)
 
 // Recursively checks if a ray intersects with nodes.
 // Return true if it does. Calls intersectWithTriangles if the nodes ia a leaf node.
-bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo){
+bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const{
 
-    Node& currentNode = nodes[nodeIndex];
+    Node currentNode = nodes[nodeIndex];
 
     if (currentNode.type == true) {
 
@@ -119,9 +119,9 @@ bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIn
 
 // Checks intersection of a ray with all the triangles contained in a leaf node.
 // Returns true if the intersection occurs.
-bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) {
+bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const {
 
-    Node& leaf = nodes[nodeIndex];
+    Node leaf = nodes[nodeIndex];
 
     if (leaf.type == false) {
 
@@ -275,7 +275,7 @@ Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles
 }
 
 // Calculates the best splits of a node along all the 3 axes.
-// Each axis is being checked for SPLITS_PER_NODE - 1 different plane divisors.
+// Each axis is being checked for SPLITS_PER_NODE - 1 different divisors.
 void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
 
 
@@ -406,7 +406,6 @@ void BoundingVolumeHierarchy::replaceChildren(int parentNodeIndex, Node& firstCh
 // Returns vector of two vectors containing indicies of two groups of verticies resulting from the split.
 std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeIndex, glm::vec3 normal, glm::vec3 point) {
 
-    Node* node = &nodes[nodeIndex];
     std::vector<int> firstGroupTriangles;
     std::vector<int> secondGroupTriangles;
 
@@ -414,7 +413,7 @@ std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeInd
     std::vector<glm::uvec3> triangles = m_pScene->meshes[0].triangles;
     std::vector<Vertex> vertices = m_pScene->meshes[0].vertices;
 
-    for (int triangleIndex: node->indices){
+    for (int triangleIndex: nodes[nodeIndex].indices){
 
         glm::uvec3 triangle = triangles[triangleIndex];
            glm::vec3 controlVector0 = vertices[triangle[0]].p - point;
@@ -462,10 +461,10 @@ float BoundingVolumeHierarchy::calculateSplitCost(AxisAlignedBox parentBox, Axis
 
     float cost = (firstChildVolume / parentNodeVolume) + (secondChildVolume / parentNodeVolume);
 
-   // if (firstChildVolume == 0 || secondChildVolume == 0) {
+    if (firstChildVolume == 0 || secondChildVolume == 0) {
 
-  //      cost = cost * 2;
-   // }
+        cost = cost * 2;
+    }
 
     return cost;
 }

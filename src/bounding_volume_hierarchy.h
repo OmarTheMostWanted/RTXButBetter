@@ -10,8 +10,8 @@
 
 struct Node;
 
-const int SPLITS_PER_NODE = 3; // number of splits being made for each AxisAlignedBox
-const int NUMBER_OF_LEVELS = 10;
+const int SPLITS_PER_NODE = 4; // number of splits being made for each AxisAlignedBox
+const int NUMBER_OF_LEVELS = 6;
 
 class BoundingVolumeHierarchy {
 public:
@@ -29,19 +29,19 @@ public:
     // Return true if something is hit, returns false otherwise.
     // Only find hits if they are closer than t stored in the ray and the intersection
     // is on the correct side of the origin (the new t >= 0).
-    bool intersect(Ray& ray, HitInfo& hitInfo) const;
+    //bool intersect(Ray& ray, HitInfo& hitInfo) const;
 
     // Checks intersection with all nodes and returns true if any intersection occurs.
     // Calls intersectWithNodes function recursively.
-    bool intersectBVH(Ray& ray, HitInfo& hitInfo);
+    bool intersect(Ray& ray, HitInfo& hitInfo) const;
 
     // Recursively checks if a ray intersects with nodes.
     // Return true if it does. Calls intersectWithTriangles if the nodes ia a leaf node.
-    bool intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo);
+    bool intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
 
     // Checks intersection of a ray with all the triangles contained in a leaf node.
     // Returns true if the intersection occurs.
-    bool intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo);
+    bool intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
     // Creates an AxisAlignedBoc out of given triangles, returns the created box
     AxisAlignedBox createBoxFromTriangles(std::vector<int> triangles);
 
