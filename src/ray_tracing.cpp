@@ -65,7 +65,7 @@ bool intersectRayWithPlane(const Plane &plane, Ray &ray) {
         } else return false;
     } else return true;
 }
-
+    
 Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2) {
     Plane plane;
     //compute plane normal

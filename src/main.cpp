@@ -219,7 +219,7 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
                 color += phongSpecularOnly(hitInfo, pointLight.position, ray.origin) * pointLight.color;
                 
             }
-            color += recursiveRay(ray, hitInfo, bvh, 1, pointLight.position, ray.origin) * pointLight.color;
+            color += recursiveRay(ray, hitInfo, bvh, 4, pointLight.position, ray.origin) * pointLight.color;
         }
 
         for (SphericalLight sphericalLight : scene.sphericalLight) {
@@ -230,7 +230,7 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
                 color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin) * sphericalLight.color;
                 
             }
-            color += recursiveRay(ray, hitInfo, bvh, 1, sphericalLight.position, ray.origin) * sphericalLight.color;
+            color += recursiveRay(ray, hitInfo, bvh, 4, sphericalLight.position, ray.origin) * sphericalLight.color;
         }
 
 
