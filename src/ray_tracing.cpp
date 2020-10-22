@@ -101,8 +101,14 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
                 if (ray.t > t) {
                     ray.t = t;
 
+                    float u, v;
+                    glm::vec3 X = glm::cross(v2 - v1, intersectionPoint - v1);
+                    glm::vec3 Y = glm::cross(v0 - v2, intersectionPoint - v2);
+                    u = glm::length(X) / glm::length(plane.normal);
+                    v = glm::length(Y) / glm::length(plane.normal);
+
+                    hitInfo.normal = u * v0 + v * v1 + (1 - u - v) * v2;
                     hitInfo.intersectionPoint = intersectionPoint;
-                    hitInfo.normal = plane.normal;
                     return true;
 
                 }

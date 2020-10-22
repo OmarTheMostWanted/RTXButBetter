@@ -196,10 +196,6 @@ glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVol
 
 }
 
-glm::vec3 interpolationValues(const BoundingVolumeHierarchy& bvh, const Ray ray, const HitInfo hitInfo) {
-    //find t, u, v those are the three vector values
-}
-
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
 static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray) {
 
