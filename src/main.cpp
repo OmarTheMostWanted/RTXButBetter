@@ -47,7 +47,7 @@ glm::vec3
 diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition) {
     auto cosAngle = glm::dot(hitInfo.normal, glm::normalize(lightPosition - hitInfo.intersectionPoint));
     if (cosAngle > 0) {
-        auto res = hitInfo.material.kd * cosAngle;
+        auto res = hitInfo.material.kd * glm::dot(hitInfo.interpolatedNormal, glm::normalize(lightPosition - hitInfo.intersectionPoint));
         return res;
     } else return glm::vec3(0);
 }
@@ -62,7 +62,7 @@ glm::vec3 phongSpecularOnly(const HitInfo hitInfo, const glm::vec3 lightPosition
     }
     auto lightVec = glm::normalize(hitInfo.intersectionPoint - lightPosition);
     auto camVec = glm::normalize(cameraPos - hitInfo.intersectionPoint);
-    auto normalN = glm::normalize(hitInfo.normal);
+    auto normalN = glm::normalize(hitInfo.interpolatedNormal);
     auto reflectedLight = glm::normalize(lightVec - (2 * (glm::dot(lightVec, normalN))) * normalN);
     return hitInfo.material.ks * glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess);
 }
