@@ -43,6 +43,13 @@ const float origin_shift = 0.0001f;
 //blue = ray from intersection point to the objects that block the light.
 //green = ray from the intersection point to the light if its not blocked.
 
+
+bool compare_floats(float x, float y) {
+    if (glm::abs(x - y) < 0.00001f)
+        return true; //they are same
+    return false; //they are not same
+}
+
 //Phong functions
 glm::vec3
 diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition) {
@@ -189,7 +196,9 @@ glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVol
     if (bvh.intersect(newRay, hitInfoRecursive)) {
         drawRay(newRay, glm::vec3(1, 0, 1));
         if (visibleToLight(newRay, lightPosition, hitInfoRecursive, bvh)) {
-            color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, cameraPos) + phongSpecularOnly(hitInfoRecursive, lightPosition, cameraPos) + diffuseOnly(hitInfoRecursive, lightPosition);
+            color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, cameraPos) +
+                     phongSpecularOnly(hitInfoRecursive, lightPosition, cameraPos) +
+                     diffuseOnly(hitInfoRecursive, lightPosition);
 
         }
     }
@@ -197,6 +206,52 @@ glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVol
 
 }
 
+
+glm::vec3 sampleSphere(const HitInfo &hitInfo, const glm::vec3 &lightPosition, const glm::vec3 &lightColor,
+                       const BoundingVolumeHierarchy &bvh,
+                       Ray &ray) {
+
+    glm::vec3 color = glm::vec3(0);
+    Ray rayToLight = {hitInfo.intersectionPoint,
+                      glm::normalize(lightPosition - hitInfo.intersectionPoint)};
+
+    if (visibleToLight(ray, lightPosition, hitInfo, bvh)) {
+        color += diffuseOnly(hitInfo, lightPosition) * lightColor;
+        color += phongSpecularOnly(hitInfo, lightPosition, ray.origin) * lightColor;
+    }
+    color += recursiveRay(ray, hitInfo, bvh, 4, lightPosition, ray.origin) * lightColor;
+    return color;
+}
+
+glm::vec3 takeRandomPoint(glm::vec3 n , glm::vec3 p , Sphere sphere , HitInfo hitInfo , Ray rayToSphereCenter){
+//    float x = (float) std::rand() - 0.5;
+//    float y = (float) std::rand() - 0.5;
+//
+//    float z = ((-1 * n.x * x + n.x * p.x) + (-1 * n.y * y + n.y * p.y) + n.z * p.z) / (n.z);
+//
+//
+//    glm::vec3 randomPoint = {x, y, z};
+//
+//    Ray randomRay;
+//
+//
+//    randomRay.origin = p;
+//    randomRay.direction = glm::normalize(randomPoint - p);
+//
+//    float t = sphere.radius * glm::length(randomRay. - )
+//
+//    glm::vec3 samplePoint1 = randomRay.origin + randomRay.direction * (sphere.radius);
+//
+//    Ray rayToSamplePoint1;
+//    rayToSamplePoint1.origin = hitInfo.intersectionPoint;
+//    rayToSamplePoint1.direction = glm::normalize(samplePoint1 - rayToSamplePoint1.origin);
+//
+//    HitInfo hitInfoSample1;
+//
+//    intersectRayWithShape(sphere, rayToSamplePoint1, hitInfoSample1);
+//
+//    drawRay(rayToSamplePoint1, glm::vec3{0, 1, 1});
+}
 
 
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
@@ -226,14 +281,78 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         }
 
         for (SphericalLight sphericalLight : scene.sphericalLight) {
-            Ray rayToLight = {hitInfo.intersectionPoint,
-                              glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
-            if (visibleToLight(ray, sphericalLight.position, hitInfo, bvh)) {
-                color += diffuseOnly(hitInfo, sphericalLight.position) * sphericalLight.color;
-                color += phongSpecularOnly(hitInfo, sphericalLight.position, ray.origin) * sphericalLight.color;
-                
-            }
-            color += recursiveRay(ray, hitInfo, bvh, 4, sphericalLight.position, ray.origin) * sphericalLight.color;
+
+
+            Ray rayToSphereCenter = {hitInfo.intersectionPoint , glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
+            Sphere lightSphere = {sphericalLight.position , sphericalLight.radius };
+
+            rayToSphereCenter.t = glm::length(lightSphere.center - rayToSphereCenter.origin) - lightSphere.radius;    //this is working so far.
+
+            auto sampleLightPosition = rayToSphereCenter.origin + rayToSphereCenter.t * rayToSphereCenter.direction;
+
+            drawRay(rayToSphereCenter, glm::vec3{0, 1, 1});
+
+            color += sampleSphere(hitInfo , sampleLightPosition , sphericalLight.color , bvh , ray);
+
+            //debug sphere
+//            Sphere debug ;
+//            debug.center = rayToSphereCenter.origin + rayToSphereCenter.t * rayToSphereCenter.direction;
+//            debug.radius = 0.05f;
+//            debug.material.kd =  glm::vec3{1 , 0 , 1};
+//            drawSphere(debug);
+            //debug sphere
+
+//            intersectRayWithShape(lightSphere , rayToSphereCenter , hit)
+
+
+
+//
+//            HitInfo hitInfo1;
+//            Sphere sphere;
+//
+//            sphere.center = sphericalLight.position;
+//            sphere.radius = sphericalLight.radius;
+//
+//            Ray toSphereCenter;
+//            toSphereCenter.direction = glm::normalize(sphericalLight.position - hitInfo.intersectionPoint);
+//            toSphereCenter.origin = hitInfo.intersectionPoint;
+//
+//            intersectRayWithShape(sphere, toSphereCenter, hitInfo1);
+//
+//            drawRay(toSphereCenter, glm::vec3{0, 1, 1});
+//
+////            Plane samplePlane;
+////            samplePlane.normal = hitInfo1.normal;
+////            samplePlane.D = glm::length(hitInfo1.intersectionPoint - toSphereCenter.origin);
+//
+//            auto n = hitInfo1.normal;
+//            auto p = hitInfo1.intersectionPoint;
+//
+//            //pick a random point on the plane:
+//
+//            takeRandomPoint(n , p , sphere , hitInfo);
+//            takeRandomPoint(n , p , sphere , hitInfo);
+//            takeRandomPoint(n , p , sphere , hitInfo);
+//            takeRandomPoint(n , p , sphere , hitInfo);
+//            takeRandomPoint(n , p , sphere , hitInfo);
+
+
+
+
+
+            //////////////////////////////
+
+
+            ////////////////////////////////
+
+
+
+            //check spheres center
+//            color += sampleSphere(hitInfo, hitInfo1.intersectionPoint, sphericalLight.color, bvh, ray);
+
+            //take 4 locations on the sphere
+//            glm::vec3 top = {hitInfo1.intersectionPoint.x - sphere.radius ,  };
+
         }
 
         return color;
@@ -272,38 +391,58 @@ renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolu
     }
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
+
+
+//    Sphere sphere;
+//    sphere.radius = 2;
+//    sphere.center = glm::vec3{1 , 2 , 3};
+//
+//    Ray ray;
+//
+//    ray.origin = glm::vec3(0);
+//    ray.direction = sphere.center;
+//
+//    HitInfo hitInfo;
+//
+//    intersectRayWithShape(sphere , ray , hitInfo);
+//
+//    std::cout << hitInfo.intersectionPoint.x << "   " << hitInfo.intersectionPoint.y  << "   "  << hitInfo.intersectionPoint.z << std::endl;
+
+
+
     Trackball::printHelp();
     std::cout << "\n Press the [R] key on your keyboard to create a ray towards the mouse cursor" << std::endl
               << std::endl;
 
-    Window window { "Final Project - Part 2", windowResolution, OpenGLVersion::GL2 };
-    Screen screen { windowResolution };
-    Trackball camera { &window, glm::radians(50.0f), 3.0f };
+    Window window{"Final Project - Part 2", windowResolution, OpenGLVersion::GL2};
+    Screen screen{windowResolution};
+    Trackball camera{&window, glm::radians(50.0f), 3.0f};
     camera.setCamera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(glm::vec3(20.0f, 20.0f, 0.0f)), 3.0f);
 
-    SceneType sceneType { SceneType::SingleTriangle };
+    SceneType sceneType{SceneType::SingleTriangle};
     std::optional<Ray> optDebugRay;
     Scene scene = loadScene(sceneType, dataPath);
-    BoundingVolumeHierarchy bvh { &scene };
+    BoundingVolumeHierarchy bvh{&scene};
 
     int bvhDebugLevel = 0;
-    bool debugBVH { false };
-    ViewMode viewMode { ViewMode::Rasterization };
+    bool debugBVH{false};
+    ViewMode viewMode{ViewMode::Rasterization};
 
     window.registerKeyCallback([&](int key, int /* scancode */, int action, int /* mods */) {
         if (action == GLFW_PRESS) {
             switch (key) {
-            case GLFW_KEY_R: {
-                // Shoot a ray. Produce a ray from camera to the far plane.
-                const auto tmp = window.getNormalizedCursorPos();
-                optDebugRay = camera.generateRay(tmp * 2.0f - 1.0f);
-                viewMode = ViewMode::Rasterization;
-            } break;
-            case GLFW_KEY_ESCAPE: {
-                window.close();
-            } break;
+                case GLFW_KEY_R: {
+                    // Shoot a ray. Produce a ray from camera to the far plane.
+                    const auto tmp = window.getNormalizedCursorPos();
+                    optDebugRay = camera.generateRay(tmp * 2.0f - 1.0f);
+                    viewMode = ViewMode::Rasterization;
+                }
+                    break;
+                case GLFW_KEY_ESCAPE: {
+                    window.close();
+                }
+                    break;
             };
         }
     });
