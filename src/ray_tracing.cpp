@@ -111,7 +111,7 @@ intersectRayWithTriangle(const Vertex &v0, const Vertex &v1, const Vertex &v2, R
                     ray.t = t;
 
                     glm::vec2 coords = findBarycentricCoordinates(v0.p, v1.p, v2.p, intersectionPoint);
-                    hitInfo.interpolatedNormal = coords.x * v0.n + coords.y * v1.n + (1 - coords.x - coords.y) * v2.n;
+                    hitInfo.interpolatedNormal = glm::normalize( coords.x * v0.n + coords.y * v1.n + (1 - coords.x - coords.y) * v2.n);
                     hitInfo.normal = plane.normal;
                     hitInfo.intersectionPoint = intersectionPoint;
                     return true;
