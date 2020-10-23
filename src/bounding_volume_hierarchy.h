@@ -37,20 +37,20 @@ public:
 
     // Recursively checks if a ray intersects with nodes.
     // Return true if it does. Calls intersectWithTriangles if the nodes ia a leaf node.
-    bool intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
+    bool intersectWithNodes(int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
 
     // Checks intersection of a ray with all the triangles contained in a leaf node.
     // Returns true if the intersection occurs.
-    bool intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
+    bool intersectWithTriangles(int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
     // Creates an AxisAlignedBoc out of given triangles, returns the created box
-    AxisAlignedBox createBoxFromTriangles(std::vector<int> triangles);
+    AxisAlignedBox createBoxFromTriangles(std::vector<int> triangles, int meshIndex);
 
     // Create a parent node and add it to the main vector of vertices.
     Node& createParentNode(int meshNumber);
     // Creates a new node out of given vertices with given indices.
-    Node createNodeFromTriangles(std::vector<int> triangles);
+    Node createNodeFromTriangles(std::vector<int> triangles, int meshIndex);
     // Creates a new node out of given vertices given as indices and an already made box.
-    Node createNodeFromTriangles(std::vector<int> triangles, AxisAlignedBox& box);
+    Node createNodeFromTriangles(std::vector<int> triangles, int meshIndex, AxisAlignedBox& box);
 
     // Calculates the best splits of a node along all the 3 axes.
     // Each axis is being checked for SPLITS_PER_NODE - 1 different plane divisors.
@@ -76,7 +76,7 @@ public:
     float calculateSplitCost(AxisAlignedBox parentBox, AxisAlignedBox firstChild, AxisAlignedBox secondChild);
 
     // Collects indices of all vertices that triangles with given indices contain and returns them as a set.
-    std::set<int> retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices);
+    std::set<int> retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices, int meshIndex);
     
 private:
     Scene* m_pScene;
@@ -89,5 +89,6 @@ public:
     bool type = 1; // 0 for interior, 1 for a leaf node
     AxisAlignedBox box; // coordinates of a axis-aligned box corespondign to the node
     float splitCost = FLT_MAX; // cost of split into two children nodes
+    int meshIndex; // index of mesh this node belongs to
 
 };

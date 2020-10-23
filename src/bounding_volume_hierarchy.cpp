@@ -15,7 +15,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
 
         createParentNode(i);
 
-        splitNode(i, NUMBER_OF_LEVELS);
+        splitNode(parentNodes[i].indices[0], NUMBER_OF_LEVELS);
 
     }
 }
@@ -27,7 +27,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     // First nodes in the nodes vector are the parent nodes.
     for (int i = 0; i < parentNodes.size(); i++) {
 
-        drawNode(i, level);
+        drawNode(parentNodes[i].indices[0], level);
     }
 }
 
@@ -93,8 +93,21 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 
     for (int i = 0; i < parentNodes.size(); i++) {
 
-    hit = hit | intersectWithNodes(i, i, ray, hitInfo);
+    hit = hit | intersectWithNodes(parentNodes[i].indices[0], ray, hitInfo);
     }
+
+    // intersection with spheres
+    for (const auto& sphere : m_pScene->spheres) {
+
+        hit |= intersectRayWithShape(sphere, ray, hitInfo);
+    }
+
+    // intersection with boxes
+    for (const auto& box : m_pScene->boxes) {
+
+        hit |= intersectRayWithShape(box, ray);
+    }
+       
 
     return hit;
 }
@@ -102,7 +115,7 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 
 // Recursively checks if a ray intersects with nodes.
 // Return true if it does. Calls intersectWithTriangles if the nodes ia a leaf node.
-bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const{
+bool BoundingVolumeHierarchy::intersectWithNodes(int nodeIndex, Ray& ray, HitInfo& hitInfo) const{
 
     Node currentNode = nodes[nodeIndex];
 
@@ -113,20 +126,20 @@ bool BoundingVolumeHierarchy::intersectWithNodes(int parentNodeIndex, int nodeIn
 
     if (currentNode.type == true) {
 
-        return intersectWithTriangles(parentNodeIndex, nodeIndex, ray, hitInfo);
+        return intersectWithTriangles(nodeIndex, ray, hitInfo);
     }
 
     bool hit = false;
 
-    hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[0], ray, hitInfo);
-    hit = hit | intersectWithNodes(parentNodeIndex, currentNode.indices[1], ray, hitInfo);
+    hit = hit | intersectWithNodes(currentNode.indices[0], ray, hitInfo);
+    hit = hit | intersectWithNodes(currentNode.indices[1], ray, hitInfo);
    
     return hit;
 }
 
 // Checks intersection of a ray with all the triangles contained in a leaf node.
 // Returns true if the intersection occurs.
-bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int nodeIndex, Ray& ray, HitInfo& hitInfo) const {
+bool BoundingVolumeHierarchy::intersectWithTriangles(int nodeIndex, Ray& ray, HitInfo& hitInfo) const {
 
     Node leaf = nodes[nodeIndex];
 
@@ -135,21 +148,21 @@ bool BoundingVolumeHierarchy::intersectWithTriangles(int parentNodeIndex, int no
         return false;
     }
 
-    std::vector<Vertex>& vertices = this->m_pScene->meshes[parentNodeIndex].vertices;
-    std::vector<Triangle>& triangles = this->m_pScene->meshes[parentNodeIndex].triangles;
+    std::vector<Vertex>& vertices = this->m_pScene->meshes[leaf.meshIndex].vertices;
+    std::vector<Triangle>& triangles = this->m_pScene->meshes[leaf.meshIndex].triangles;
     bool result = 0;
 
     for (int i : leaf.indices) {
 
         result = result | intersectRayWithTriangle(vertices[triangles[i][0]].p, vertices[triangles[i][1]].p, vertices[triangles[i][2]].p,
-            ray, hitInfo, m_pScene->meshes[parentNodeIndex].material);
+            ray, hitInfo, m_pScene->meshes[leaf.meshIndex].material);
     }
 
     return result;
 }
 
 // Creates new AxisAlignedBox containing all of the vertices with given indices and returns it.
-AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> triangles)
+AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> triangles, int meshIndex)
 {
 
     if (triangles.empty()) {
@@ -164,9 +177,9 @@ AxisAlignedBox BoundingVolumeHierarchy::createBoxFromTriangles(std::vector<int> 
     float maxY = INT_MIN;
     float maxZ = INT_MIN;
 
-    const std::vector<Vertex> vertices = m_pScene->meshes[0].vertices;
+    const std::vector<Vertex> vertices = m_pScene->meshes[meshIndex].vertices;
 
-    std::set<int> verticesIndices = retrieveVerticesIndicesFromTrianglesIndices(triangles);
+    std::set<int> verticesIndices = retrieveVerticesIndicesFromTrianglesIndices(triangles, meshIndex);
 
     
 
@@ -247,21 +260,23 @@ Node& BoundingVolumeHierarchy::createParentNode(int meshNumber) {
     newBox.lower = glm::vec3(minX, minY, minZ);
     newBox.upper = glm::vec3(maxX, maxY, maxZ);
 
-    std::vector<int> allIndices(m_pScene->meshes[0].triangles.size());
+    std::vector<int> allIndices(m_pScene->meshes[meshNumber].triangles.size());
     std::iota(begin(allIndices), end(allIndices), 0);
 
-    Node parentNode{ allIndices, 1, newBox, FLT_MAX };
+    Node parentNode{ allIndices, 1, newBox, FLT_MAX, meshNumber };
     nodes.push_back(parentNode);
+    parentNode.indices.clear();
+    parentNode.indices.push_back(nodes.size() - 1);
     parentNodes.push_back(parentNode);
 
     return parentNode;
 }
 
 // Creates a new node out of given vertices with given indices.
-Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles)
+Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles, int meshIndex)
 {
     Node newNode;
-    newNode.box = createBoxFromTriangles(triangles);
+    newNode.box = createBoxFromTriangles(triangles, meshIndex);
     newNode.indices = triangles; // this will be replaces with the indices of children nodes if the node turns out to be an interior node
     newNode.type = 1; // a temporal status
     newNode.splitCost = FLT_MAX;
@@ -270,7 +285,7 @@ Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles
 }
 
 // Creates a new node out of given vertices given as indices and an already made box.
-Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles, AxisAlignedBox& box)
+Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles, int meshIndex, AxisAlignedBox& box)
 {
 
     Node newNode;
@@ -369,17 +384,17 @@ void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
 void BoundingVolumeHierarchy::compareCostsAndUpdate(int nodeIndex, std::vector<std::vector<int>> dividedTriangles) {
 
     Node& parentNode = nodes[nodeIndex];
-    AxisAlignedBox firstBox = createBoxFromTriangles(dividedTriangles[0]);
-    AxisAlignedBox secondBox = createBoxFromTriangles(dividedTriangles[1]);
+    AxisAlignedBox firstBox = createBoxFromTriangles(dividedTriangles[0], parentNode.meshIndex);
+    AxisAlignedBox secondBox = createBoxFromTriangles(dividedTriangles[1], parentNode.meshIndex);
 
     float newCost = calculateSplitCost(parentNode.box, firstBox, secondBox);
 
     if (newCost < parentNode.splitCost) {
 
         parentNode.splitCost = newCost;
-        Node firstChild = createNodeFromTriangles(dividedTriangles[0], firstBox);
-        Node secondChild = createNodeFromTriangles(dividedTriangles[1], secondBox);
-
+        Node firstChild = createNodeFromTriangles(dividedTriangles[0], parentNode.meshIndex, firstBox);
+        Node secondChild = createNodeFromTriangles(dividedTriangles[1], parentNode.meshIndex, secondBox);
+       
         replaceChildren(nodeIndex, firstChild, secondChild);
         
     }
@@ -396,6 +411,8 @@ void BoundingVolumeHierarchy::replaceChildren(int parentNodeIndex, Node& firstCh
         this->nodes.pop_back();
     }
 
+    firstChild.meshIndex = parentNode->meshIndex;
+    secondChild.meshIndex = parentNode->meshIndex;
     this->nodes.push_back(firstChild);
     this->nodes.push_back(secondChild);
 
@@ -417,9 +434,10 @@ std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeInd
     std::vector<int> firstGroupTriangles;
     std::vector<int> secondGroupTriangles;
 
-    Mesh mesh = m_pScene->meshes[0];
-    std::vector<glm::uvec3> triangles = m_pScene->meshes[0].triangles;
-    std::vector<Vertex> vertices = m_pScene->meshes[0].vertices;
+    int meshIndex = nodes[nodeIndex].meshIndex;
+    Mesh mesh = m_pScene->meshes[meshIndex];
+    std::vector<glm::uvec3> triangles = m_pScene->meshes[meshIndex].triangles;
+    std::vector<Vertex> vertices = m_pScene->meshes[meshIndex].vertices;
 
     for (int triangleIndex: nodes[nodeIndex].indices){
 
@@ -479,9 +497,9 @@ float BoundingVolumeHierarchy::calculateSplitCost(AxisAlignedBox parentBox, Axis
 
 
 // Collects indices of all vertices that triangles with given indices contain and returns them as a set.
-std::set<int>  BoundingVolumeHierarchy::retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices) {
+std::set<int>  BoundingVolumeHierarchy::retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices, int meshIndex) {
 
-    const std::vector<glm::uvec3> triangles = m_pScene->meshes[0].triangles;
+    const std::vector<glm::uvec3> triangles = m_pScene->meshes[meshIndex].triangles;
 
     std::set<int> verticesIndices;
 
