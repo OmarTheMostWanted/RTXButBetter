@@ -151,6 +151,39 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
     }
 }
 
+glm::vec3 transparentColor(const Ray& ray, const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, const glm::vec3 lightPosition, 
+                            const glm::vec3& lightColor, const glm::vec3& cameraPos, const float index_in) {
+    if (hitInfo.material.transparency == 1.0f) return glm::vec3(0.0f);
+      
+    
+    glm::vec3 dir_in = glm::normalize(ray.direction);
+    glm::vec3 color = glm::vec3( 0.0f );
+    glm::vec3 N;
+    if (glm::dot(dir_in, hitInfo.normal) > 0) {
+        N = glm::normalize(hitInfo.normal);
+    }
+    else {
+        N = glm::normalize(-hitInfo.normal);
+    }
+
+    float ratio = index_in / hitInfo.material.index_of_refraction;
+    float c = glm::dot(N, dir_in);
+    glm::vec3 dir_through = ratio * dir_in + ((ratio * c) - sqrtf(1 - powf(ratio, 2)*(1 - powf(c, 2)))) * N;
+    Ray ray_through = Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through };
+
+    HitInfo hit_through;
+    if (bvh.intersect(ray_through, hit_through)) {
+        drawRay(ray_through, glm::vec3(1, 1, 0));
+        color += (1 - hitInfo.material.transparency) * (transparentColor(ray_through, hit_through, bvh, lightPosition, lightColor, cameraPos, hitInfo.material.index_of_refraction));
+        if (visibleToLight(ray_through, lightPosition, hit_through, bvh)) {
+            color += (diffuseOnly(hit_through, lightPosition, lightColor) +
+                phongSpecularOnly(hit_through, lightPosition, lightColor, cameraPos)) * 
+                (1-hitInfo.material.transparency);
+        }
+    }
+    return color;
+}
+
 //Recursive ray tracing
 /**
  * Create recursive ray
@@ -180,7 +213,8 @@ glm::vec3 recursiveRay(const Ray &ray, const HitInfo &hitInfo, const BoundingVol
         if (visibleToLight(newRay, lightPosition, hitInfoRecursive, bvh)) {
             color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, lightColor, cameraPos) +
                      phongSpecularOnly(hitInfoRecursive, lightPosition, lightColor, cameraPos) +
-                     diffuseOnly(hitInfoRecursive, lightPosition, lightColor);
+                     diffuseOnly(hitInfoRecursive, lightPosition, lightColor) +
+                     transparentColor(newRay, hitInfoRecursive, bvh, lightPosition, lightColor, cameraPos, hitInfo.material.index_of_refraction);
 
         }
     }
@@ -292,10 +326,11 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         // compute shading for each light source
         for (PointLight pointLight : scene.pointLights) {
             if (visibleToLight(ray, pointLight.position, hitInfo, bvh)) {
-                color += diffuseOnly(hitInfo, pointLight.position, pointLight.color);
-                color += phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin);
+                color += diffuseOnly(hitInfo, pointLight.position, pointLight.color) * hitInfo.material.transparency;
+                color += phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin) * hitInfo.material.transparency;
             }
-            color += recursiveRay(ray, hitInfo, bvh, ray_tracing_levels, pointLight.position, pointLight.color, ray.origin);
+            color += recursiveRay(ray, hitInfo, bvh, ray_tracing_levels, pointLight.position, pointLight.color, ray.origin) * hitInfo.material.transparency;
+            color += transparentColor(ray, hitInfo, bvh, pointLight.position, pointLight.color, ray.origin, 1);
         }
 
         for (SphericalLight sphericalLight : scene.sphericalLight) {
