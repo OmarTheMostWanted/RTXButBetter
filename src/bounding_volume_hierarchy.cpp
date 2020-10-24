@@ -15,7 +15,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
 
         createParentNode(i);
 
-        splitNode(parentNodes[i].indices[0], NUMBER_OF_LEVELS);
+        splitNode(parentNodes[i], NUMBER_OF_LEVELS);
 
     }
 }
@@ -27,13 +27,13 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     // First nodes in the nodes vector are the parent nodes.
     for (int i = 0; i < parentNodes.size(); i++) {
 
-        drawNode(parentNodes[i].indices[0], level);
+        drawNode(parentNodes[i], level);
     }
 }
 
-// Draws a box contained in a node if the level corresponds to the level provided in the debugDraw method.
+// Draws a box contained in a node if the level corresponds to the level provided in the debugDraw method(green).
 // Otherwise delves deeper into the BVH tree to find the node corresponding to the given level.
-// Nodes which are leaf nodes and do not reside on a given level are ignored.
+// Nodes which are leaf nodes and reside on lower levels of the tree are colored blue.
 void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
 
     
@@ -41,6 +41,11 @@ void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
     if (remainingLevels == 0) {
 
         drawAABB(node.box, DrawMode::Wireframe, glm::vec3(0.0f, 1.0f, 0.0f), 1.0);
+        return;
+    }
+    else if (node.type == 1) {
+
+        drawAABB(node.box, DrawMode::Wireframe, glm::vec3(0.0f, 0.0f, 1.0f), 1.0);
         return;
     }
 
@@ -93,7 +98,7 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
 
     for (int i = 0; i < parentNodes.size(); i++) {
 
-    hit = hit | intersectWithNodes(parentNodes[i].indices[0], ray, hitInfo);
+    hit = hit | intersectWithNodes(parentNodes[i], ray, hitInfo);
     }
 
     // intersection with spheres
@@ -265,9 +270,7 @@ Node& BoundingVolumeHierarchy::createParentNode(int meshNumber) {
 
     Node parentNode{ allIndices, 1, newBox, FLT_MAX, meshNumber };
     nodes.push_back(parentNode);
-    parentNode.indices.clear();
-    parentNode.indices.push_back(nodes.size() - 1);
-    parentNodes.push_back(parentNode);
+    parentNodes.push_back(nodes.size() - 1);
 
     return parentNode;
 }

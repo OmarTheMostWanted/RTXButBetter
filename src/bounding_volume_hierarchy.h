@@ -10,17 +10,24 @@
 
 struct Node;
 
-const int SPLITS_PER_NODE = 4; // number of splits being made for each AxisAlignedBox
-const int NUMBER_OF_LEVELS = 6;
+const int SPLITS_PER_NODE = 2; // number of splits being made for each AxisAlignedBox
+const int NUMBER_OF_LEVELS = 12;
 
 class BoundingVolumeHierarchy {
 public:
     BoundingVolumeHierarchy(Scene* pScene);
 
     std::vector<Node> nodes;
-    std::vector<Node> parentNodes;
-    // Use this function to visualize your BVH. This can be useful for debugging.
+
+    // Contains indices of all the parentNode, one per each mesh
+    std::vector<int> parentNodes;
+
+    // Starts drawing of the boxes contained in the BVH.
+    // Only nodes existing at the particural level will be displayed.
     void debugDraw(int level);
+    // Draws a box contained in a node if the level corresponds to the level provided in the debugDraw method(green).
+    // Otherwise delves deeper into the BVH tree to find the node corresponding to the given level.
+    // Nodes which are leaf nodes and reside on lower levels of the tree are colored blue.
     void drawNode(int NodeIndex, int remainingLevels);
 
     // Returns number of levels. The more levels the more nodes in the BVH.
