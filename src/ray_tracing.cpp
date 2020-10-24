@@ -74,7 +74,7 @@ bool intersectRayWithPlane(const Plane &plane, Ray &ray) {
         } else return false;
     } else return true;
 }
-
+    
 Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2) {
     Plane plane;
     //compute plane normal
@@ -110,16 +110,17 @@ intersectRayWithTriangle(const Vertex &v0, const Vertex &v1, const Vertex &v2, R
                 if (ray.t > t) {
                     ray.t = t;
 
+
                     glm::vec2 coords = findBarycentricCoordinates(v0.p, v1.p, v2.p, intersectionPoint);
                     hitInfo.interpolatedNormal = glm::normalize( coords.x * v0.n + coords.y * v1.n + (1 - coords.x - coords.y) * v2.n);
                     hitInfo.normal = plane.normal;
                     hitInfo.intersectionPoint = intersectionPoint;
                     return true;
-
-                }
+                } else return false;
             }
         } else {
             if (compare_float(dot((pointOnPlane - ray.origin), plane.normal), 0)) { //ray is on the plane
+
                 glm::vec3 intersectionPoint = ray.origin;
 
                 ray.t = 0;
@@ -141,7 +142,6 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
     //shift to origin
     glm::vec3 RayOrigin = ray.origin - sphere.center;
 
-
     //pow() is slow
     float A = (ray.direction.x * ray.direction.x) + (ray.direction.y * ray.direction.y) +
               (ray.direction.z * ray.direction.z);
@@ -150,35 +150,32 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
               (sphere.radius * sphere.radius);
     float D = B * B - (4 * A * C);
 
-
     if (D >= 0) {
 
         float t1 = ((-1 * B) + glm::sqrt(D)) / (2 * A);
         float t2 = ((-1 * B) - glm::sqrt(D)) / (2 * A);
 
         if (t1 >= 0 && t2 >= 0) {
-
             if (ray.t > t2) {
                 ray.t = t2;
+
+                hitInfo.material = sphere.material;
+                hitInfo.intersectionPoint = ray.origin + (ray.t * ray.direction);
+                hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
                 return true;
             }
 
-//            hitInfo.intersectionPoint = ray.origin + (ray.direction * tIn);
-//            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
-            
         }
 
         if (t1 >= 0 && t2 < 0) { //t2 is the exit point
             if (ray.t > t1) {
                 ray.t = t1;
+                hitInfo.material = sphere.material;
+                hitInfo.intersectionPoint = ray.origin + (ray.t * ray.direction);
+                hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
                 return true;
             }
-
-//            hitInfo.intersectionPoint = ray.origin + (ray.direction * t2);
-//            hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
-            
         }
-
     }
 
     return false;
