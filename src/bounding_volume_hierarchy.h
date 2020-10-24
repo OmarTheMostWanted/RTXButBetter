@@ -2,10 +2,9 @@
 #include "ray_tracing.h"
 #include "scene.h"
 #include <iostream>
-#include <glm\geometric.hpp>
 #include <numeric>
 #include <set>
-
+#include <cfloat>
 
 
 struct Node;

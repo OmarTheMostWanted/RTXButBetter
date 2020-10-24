@@ -1,9 +1,10 @@
 #include "bounding_volume_hierarchy.h"
 #include "draw.h"
 #include <iostream>
-#include <glm\geometric.hpp>
 #include <numeric>
 #include <set>
+#include <climits>
+#include <glm/geometric.hpp>
 
 // Initializes the BVH class.
 // Creates all the parent nodes - one parent node for each mesh.
