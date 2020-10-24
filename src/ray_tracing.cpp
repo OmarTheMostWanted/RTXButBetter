@@ -107,6 +107,7 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
                     return true;
 
                 }
+                return false;
             }
         } else {
             if (compare_float(dot((pointOnPlane - ray.origin), plane.normal), 0)) { //ray is on the plane
