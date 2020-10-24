@@ -55,10 +55,10 @@ bool compare_floats(float x, float y) {
 
 //Phong functions
 glm::vec3
-diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition) {
+diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition, glm::vec3 color) {
     auto cosAngle = glm::dot(hitInfo.interpolatedNormal, glm::normalize(lightPosition - hitInfo.intersectionPoint));
     if (cosAngle > 0) {
-        auto res = hitInfo.material.kd * glm::dot(hitInfo.interpolatedNormal, glm::normalize(lightPosition - hitInfo.intersectionPoint));
+        auto res = hitInfo.material.kd * glm::dot(hitInfo.interpolatedNormal, glm::normalize(lightPosition - hitInfo.intersectionPoint)) * color;
         return res;
     } else return glm::vec3(0);
 }
@@ -163,28 +163,32 @@ glm::vec3 recursiveRay(const Ray &ray, const HitInfo &hitInfo, const BoundingVol
                        const glm::vec3 lightPosition, const glm::vec3 &lightColor, const glm::vec3 &cameraPos) {
     if (hitInfo.material.ks == glm::vec3{0.0f}) return glm::vec3(0.0f);
     if (levels <= 0) return glm::vec3(0.0f);
+
     glm::vec3 normalizedN;
     if (glm::dot(ray.direction, hitInfo.normal) >= 0) {
         normalizedN = glm::normalize(hitInfo.normal);
     } else {
         normalizedN = -glm::normalize(hitInfo.normal);
     }
+    
     glm::vec3 color = glm::vec3(0.0f);
     HitInfo hitInfoRecursive;
+    glm::vec3 dirNormal = glm::normalize(ray.direction);
 
-    glm::vec3 direction = glm::normalize(ray.direction - 2 * glm::dot(ray.direction, normalizedN) * normalizedN);
+    glm::vec3 direction = glm::normalize(dirNormal - 2 * glm::dot(dirNormal, normalizedN) * normalizedN);
     Ray newRay = Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
 
     if (bvh.intersect(newRay, hitInfoRecursive)) {
-        drawRay(newRay, glm::vec3(1, 0, 1));
-        if (visibleToLight(newRay, lightPosition, hitInfoRecursive, bvh)) {
-            color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, lightColor, cameraPos) +
-                     phongSpecularOnly(hitInfoRecursive, lightPosition, lightColor, cameraPos) +
-                     diffuseOnly(hitInfoRecursive, lightPosition, lightColor);
 
+        drawRay(newRay, glm::vec3(1, 0, 1));
+
+        if (visibleToLight(newRay, lightPosition, hitInfoRecursive, bvh)) {
+            color += phongSpecularOnly(hitInfoRecursive, lightPosition, lightColor, cameraPos) +
+                     diffuseOnly(hitInfoRecursive, lightPosition, lightColor);
         }
+        color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, lightColor, cameraPos);
     }
-    return color;
+    return color * hitInfo.material.ks;
 
 }
 
