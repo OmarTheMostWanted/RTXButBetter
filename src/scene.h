@@ -53,7 +53,7 @@ struct SphericalLight {
 struct Scene {
     std::vector<Mesh> meshes;
     std::vector<Sphere> spheres;
-    //std::vector<AxisAlignedBox> boxes;
+    std::vector<AxisAlignedBox> boxes;
 
     std::vector<PointLight> pointLights;
     std::vector<SphericalLight> sphericalLight;
