@@ -188,7 +188,7 @@ glm::vec3 recursiveRay(const Ray &ray, const HitInfo &hitInfo, const BoundingVol
         }
         color += recursiveRay(newRay, hitInfoRecursive, bvh, levels - 1, lightPosition, lightColor, cameraPos);
     }
-    return color * hitInfo.material.ks;
+    return (color * hitInfo.material.ks) ;
 
 }
 
