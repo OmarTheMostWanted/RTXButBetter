@@ -20,6 +20,9 @@ struct Material {
     float shininess { 1.0f };
 
     float transparency { 1.0f };
+    // air = 1
+    float index_of_refraction{ 1.0f };
+    glm::vec3 transparent_color;
 };
 
 using Triangle = glm::uvec3;
