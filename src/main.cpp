@@ -93,8 +93,6 @@ glm::vec3 phongSpecularOnly(const HitInfo &hitInfo, const glm::vec3 &lightPositi
 bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh) {
 
     Ray rayToLight = {hitInfo.intersectionPoint, glm::normalize(lightPosition - hitInfo.intersectionPoint) };
-
-
     auto cosLightNormal = glm::dot(rayToLight.direction , hitInfo.normal);
     //make sure that the ray hits the lit side of the mesh.
     if(cosLightNormal >= 0 ){
@@ -104,14 +102,11 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
             rayToLight.origin = rayToLight.origin + (rayToLight.direction * origin_shift);
 
-
             HitInfo hitInfo1;
-
 
             auto intersection = bvh.intersect(rayToLight, hitInfo1);
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
-
 
             if (intersection) {
 
@@ -119,28 +114,16 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
                 //make sure if the there is an object closer to the point than the light ie the light is blocked
                 if (fromPointToIntersection < fromLightToPoint) {
-//                    std::cout << "Light Blocked"<< std::endl;
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
-
-//                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
-
-//                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
-
                     return false;
                 }
             }
-//            std::cout << "Light not blocked "<< std::endl;
-
             rayToLight.t = fromLightToPoint;
             drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
             return true;
-
-
         } else {
-//            std::cout << "light is behind the mesh" << std::endl;
             return false;
         }
-
     } else {
         if(glm::dot(inComingRay.direction , hitInfo.normal) > 0  ){
             rayToLight.origin = rayToLight.origin + (rayToLight.direction * origin_shift);
@@ -150,17 +133,11 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
 
-
             if (intersection) {
 
                 float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
                 if (fromPointToIntersection < fromLightToPoint) {
-//                    std::cout << "Light Blocked"<< std::endl;
-//                    std::cout << "distance to light : " << fromLightToPoint << std::endl;
-
-//                    std::cout << "t of light ray: " << rayToLight.t << std::endl;
-
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
                     return false;
                 }
@@ -237,12 +214,10 @@ glm::vec3 takeSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint
     glm::vec3 samplePoint1 = randomRay.origin + randomRay.direction * distanceFromPlainCenterToSamplePoint;
     glm::vec3 samplePoint2 = randomRay.origin - randomRay.direction * distanceFromPlainCenterToSamplePoint;
 
-
     glm::vec3 samplePoint3 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint/2);
     glm::vec3 samplePoint4 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint/2);
 
     randomRay.direction = glm::normalize(glm::cross(randomRay.direction, samplePlainNormal));
-
 
     glm::vec3 samplePoint5 = randomRay.origin + randomRay.direction * distanceFromPlainCenterToSamplePoint;
     glm::vec3 samplePoint6 = randomRay.origin - randomRay.direction * distanceFromPlainCenterToSamplePoint;
@@ -260,16 +235,13 @@ glm::vec3 takeSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint
     color += sampleSphere(hitInfo, samplePoint7, lightColor, bvh, ray);
     color += sampleSphere(hitInfo, samplePoint8, lightColor, bvh, ray);
 
-
     return color;
-
 }
 
 
 glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphericalLight, const glm::vec3 &p,
                            const glm::vec3 &n, const Ray &rayToSphereCenter,
                            HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, Ray &ray ) {
-
     //start by choosing a random point on the plane
 //    float x = (float) rand() / RAND_MAX * 2 - 1;
 //    float y = (float) rand() / RAND_MAX * 2 - 1;
@@ -286,13 +258,9 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
     randomRay.direction = glm::normalize(glm::vec3{x, y, z} - p);
 
     float i = 0.0;
-
     int samplesTaken = 0;
 
-
     while(i < (glm::pi<float>()/4)){
-
-//        std::cout << i * (180 / glm::pi<float>()) << std::endl;
 
         glm::mat4 rotation = glm::rotate( glm::mat4(1.0f) , i , randomRay.origin);
 
@@ -305,11 +273,8 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
 
         color += takeSamples(randomRay , distanceFromPlainCenterToSamplePoint , n , hitInfo , bvh , ray , sphericalLight.color);
         samplesTaken += 8;
-
     }
-
     return color;
-
 }
 
 
@@ -317,8 +282,6 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
 static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray) {
 
     HitInfo hitInfo;
-
-
     if (bvh.intersect(ray, hitInfo)) {
 
 //         Draw a white debug ray.
@@ -328,19 +291,14 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         //shading
         // compute shading for each light source
         for (PointLight pointLight : scene.pointLights) {
-
             if (visibleToLight(ray, pointLight.position, hitInfo, bvh)) {
-
                 color += diffuseOnly(hitInfo, pointLight.position, pointLight.color);
-
                 color += phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin);
-                
             }
             color += recursiveRay(ray, hitInfo, bvh, ray_tracing_levels, pointLight.position, pointLight.color, ray.origin);
         }
 
         for (SphericalLight sphericalLight : scene.sphericalLight) {
-
             Ray rayToSphereCenter = {hitInfo.intersectionPoint,
                                      glm::normalize(sphericalLight.position - hitInfo.intersectionPoint)};
             rayToSphereCenter.t = glm::length(sphericalLight.position - rayToSphereCenter.origin) -
@@ -359,14 +317,6 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
             color += ( sphereLightSamples / (number_light_samples + 1.0f));
 
         }
-
-
-//        if(color.x > 1) color.x = 1;
-//        if(color.y > 1) color.y = 1;
-//        if(color.z > 1) color.z = 1;
-
-//        std::cout << color.x << "   " << color.y << "   " << color.z << std::endl;
-
         return color;
     } else {
         // Draw a red debug ray if the ray missed.
