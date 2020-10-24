@@ -21,7 +21,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     // Draw the AABB as a (white) wireframe box.
     AxisAlignedBox aabb { glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f) };
     //drawAABB(aabb, DrawMode::Wireframe);
-    drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 0.1);
+    drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 0.1f);
 }
 
 int BoundingVolumeHierarchy::numLevels() const
@@ -42,7 +42,7 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
             const auto v0 = mesh.vertices[tri[0]];
             const auto v1 = mesh.vertices[tri[1]];
             const auto v2 = mesh.vertices[tri[2]];
-            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo)) {
+            if (intersectRayWithTriangle(v0, v1, v2, ray, hitInfo)) {
                 hitInfo.material = mesh.material;
                 hit = true;
             }
