@@ -54,6 +54,11 @@ bool compare_floats(float x, float y) {
     return false; //they are not same
 }
 
+bool compare_vector(glm::vec3 a, glm::vec3 b) {
+    if (compare_floats(a.x, b.x) && compare_floats(a.y, b.y) && compare_floats(a.z, b.z)) return true;
+    else return false;
+}
+
 //Phong functions
 glm::vec3
 diffuseOnly(const HitInfo hitInfo, const glm::vec3 lightPosition, glm::vec3 color, const bool interpolate) {
@@ -170,7 +175,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
  */
 glm::vec3 recursiveRay(const Ray& ray, const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, int levels,
     const glm::vec3 lightPosition, const glm::vec3& lightColor, const glm::vec3& cameraPos, const bool interpolate) {
-    if (hitInfo.material.ks == glm::vec3{0.0f}) return glm::vec3(0.0f);
+    if (compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) return glm::vec3(0.0f);
     if (levels <= 0) return glm::vec3(0.0f);
 
     glm::vec3 normalizedN;
