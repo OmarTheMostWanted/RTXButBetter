@@ -35,6 +35,17 @@ void Screen::setPixel(int x, int y, const glm::vec3& color)
     m_textureData[i] = glm::vec4(color, 1.0f);
 }
 
+glm::vec3 Screen::getPixel(int x, int y){
+
+    if(x > m_resolution.x || x < 0 || y > m_resolution.y || y < 0){
+        return glm::vec3(0.0f);
+    }
+
+    const int i = (m_resolution.y - 1 - y) * m_resolution.x + x;
+    return m_textureData[i];
+}
+
+
 void Screen::writeBitmapToFile(const std::filesystem::path& filePath)
 {
     std::vector<glm::u8vec4> textureData8Bits(m_textureData.size());
