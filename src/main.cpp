@@ -166,14 +166,44 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
     }
 }
 
+glm::vec3 transparentColor(const Ray& ray, const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, const glm::vec3 lightPosition, 
+                            const glm::vec3& lightColor, const glm::vec3& cameraPos, const float index_in) {
+    if (hitInfo.material.transparency == 1.0f) return glm::vec3(0.0f);
+      
+    
+    glm::vec3 dir_in = glm::normalize(ray.direction);
+    glm::vec3 color = glm::vec3( 0.0f );
+    glm::vec3 N;
+    if (glm::dot(dir_in, hitInfo.normal) > 0) {
+        N = glm::normalize(hitInfo.normal);
+    }
+    else {
+        N = glm::normalize(-hitInfo.normal);
+    }
+
+    float ratio = index_in / hitInfo.material.index_of_refraction;
+    float c = glm::dot(N, dir_in);
+    glm::vec3 dir_through = ratio * dir_in + ((ratio * c) - sqrtf(1 - powf(ratio, 2)*(1 - powf(c, 2)))) * N;
+    Ray ray_through = Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through };
+
+    HitInfo hit_through;
+    if (bvh.intersect(ray_through, hit_through)) {
+        drawRay(ray_through, glm::vec3(1, 1, 0));
+        color += (1 - hitInfo.material.transparency) * (transparentColor(ray_through, hit_through, bvh, lightPosition, lightColor, cameraPos, hitInfo.material.index_of_refraction));
+        if (visibleToLight(ray_through, lightPosition, hit_through, bvh)) {
+            color += (diffuseOnly(hit_through, lightPosition, lightColor) +
+                phongSpecularOnly(hit_through, lightPosition, lightColor, cameraPos)) * 
+                (1-hitInfo.material.transparency);
+        }
+    }
+    return color;
+}
+
 //Recursive ray tracing
 Ray computeReflectedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo, const bool interpolate) {
     glm::vec3 normalizedN;
     if (interpolate) normalizedN = glm::normalize(hitInfo.interpolatedNormal);
     else normalizedN = glm::normalize(hitInfo.normal);
-
-    if (glm::dot(ray.direction, normalizedN) < 0) normalizedN = -normalizedN;
-
     glm::vec3 dirNormal = glm::normalize(ray.direction);
     glm::vec3 direction = glm::normalize(dirNormal - 2 * glm::dot(dirNormal, normalizedN) * normalizedN);
     return Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
@@ -294,6 +324,7 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
         if (!scene.pointLights.empty()) {
             color += pointLightShade(scene, bvh, ray, hitInfo, level);
         }
+      
         if (!scene.sphericalLight.empty()) {
             for (SphericalLight sphericalLight : scene.sphericalLight) {
                 Ray rayToSphereCenter = { hitInfo.intersectionPoint,
