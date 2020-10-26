@@ -167,14 +167,13 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 }
 
 //Recursive ray tracing
-Ray computeReflectedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo) {
+Ray computeReflectedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo, const bool interpolate) {
     glm::vec3 normalizedN;
-    if (glm::dot(ray.direction, hitInfo.normal) >= 0) {
-        normalizedN = glm::normalize(hitInfo.normal);
-    }
-    else {
-        normalizedN = -glm::normalize(hitInfo.normal);
-    }
+    if (interpolate) normalizedN = glm::normalize(hitInfo.interpolatedNormal);
+    else normalizedN = glm::normalize(hitInfo.normal);
+
+    if (glm::dot(ray.direction, normalizedN) < 0) normalizedN = -normalizedN;
+
     glm::vec3 dirNormal = glm::normalize(ray.direction);
     glm::vec3 direction = glm::normalize(dirNormal - 2 * glm::dot(dirNormal, normalizedN) * normalizedN);
     return Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
@@ -275,7 +274,7 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
         }
     }
     //recursive ray tracing
-    Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo);
+    Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
     if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
         glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
         color += reflected_color;
