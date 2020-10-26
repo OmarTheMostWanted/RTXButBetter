@@ -37,7 +37,7 @@ void Screen::setPixel(int x, int y, const glm::vec3& color)
 
 glm::vec3 Screen::getPixel(int x, int y){
 
-    if(x > m_resolution.x || x < 0 || y > m_resolution.y || y < 0){
+    if(x >= m_resolution.x || x < 0 || y >= m_resolution.y || y < 0){
         return glm::vec3(0.0f);
     }
 

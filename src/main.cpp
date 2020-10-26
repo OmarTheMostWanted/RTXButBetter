@@ -37,7 +37,7 @@ enum class ViewMode {
 
 
 const float origin_shift = 0.0001f;
-const int number_light_samples = 64; //set to 12 for faster rendering times
+const int number_light_samples = 32; //set to 12 for faster rendering times
 const int ray_tracing_levels = 8;
 const float bloomThreshold = 0.9f;
 const int bloomFilterSize = 16;
@@ -306,7 +306,7 @@ Screen bloom(Screen &screen) {
     Screen newScreen(screen.m_resolution);
 
     for (int y = 0; y < windowResolution.y; y++) {
-        for (int x = 0; x != windowResolution.x; x++) {
+        for (int x = 0; x < windowResolution.x; x++) {
             const int i = (screen.m_resolution.y - 1 - y) * screen.m_resolution.x + x;
             glm::vec3 colorComponents(0.0f);
 
