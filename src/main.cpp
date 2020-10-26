@@ -95,6 +95,21 @@ glm::vec3 phongSpecularOnly(const HitInfo &hitInfo, const glm::vec3 &lightPositi
            glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess) * lightColor;
 }
 
+bool visibleToLightTransparant(Ray ray, glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy& bvh, float dim) {
+    dim = (dim + (1 - hitInfo.material.transparency)) / 2;
+    float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
+    float fromPointToIntersection = glm::length(hitInfo.intersectionPoint - (hitInfo.intersectionPoint + (ray.direction * ray.t)));
+    if (fromPointToIntersection > fromLightToPoint) return true;
+    if (hitInfo.material.transparency > 0.00001f) {
+        Ray refractedRay = computeRefractedRay(bvh, ray, hitInfo, false);
+        HitInfo hit;
+        if (bvh.intersect(refractedRay, hit, 0, ray_tracing_levels)) return visibleToLightTransparant(refractedRay, lightPosition, hit, bvh, dim , level+1);
+        ray.t = fromLightToPoint;
+        drawRay(ray, glm::vec3(0, 1.0f, 0.0f));
+        return true;
+    }
+    else return false;
+}
 
 /**
  * Check if the point is visible from the light scours.
@@ -105,7 +120,7 @@ glm::vec3 phongSpecularOnly(const HitInfo &hitInfo, const glm::vec3 &lightPositi
  * @param bvh
  * @return
  */
-bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh, int level) {
+bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh, int level, float dim) {
 
     Ray rayToLight = {hitInfo.intersectionPoint, glm::normalize(lightPosition - hitInfo.intersectionPoint) };
     auto cosLightNormal = glm::dot(rayToLight.direction , hitInfo.normal);
@@ -122,6 +137,13 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
             auto intersection = bvh.intersect(rayToLight, hitInfo1, level, ray_tracing_levels);
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
+            
+            if (intersection && hitInfo1.material.transparency > 0.00001f) {
+                Ray refractedLightCheck = computeRefractedRay(bvh, rayToLight, hitInfo1, false);
+                HitInfo refractedLightHit;
+                dim = (1 - hitInfo.material.transparency);
+                if (bvh.intersect(refractedLightCheck, refractedLightHit, 0 , ray_tracing_levels)) return visibleToLightTransparant(refractedLightCheck, lightPosition, refractedLightHit, bvh, dim);
+            }
 
             if (intersection) {
 
@@ -166,13 +188,10 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
     }
 }
 
-glm::vec3 transparentColor(const Ray& ray, const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, const glm::vec3 lightPosition, 
-                            const glm::vec3& lightColor, const glm::vec3& cameraPos, const float index_in) {
-    if (hitInfo.material.transparency == 1.0f) return glm::vec3(0.0f);
-      
-    
+//Refraction
+Ray computeRefractedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo, const bool interpolate) {
     glm::vec3 dir_in = glm::normalize(ray.direction);
-    glm::vec3 color = glm::vec3( 0.0f );
+    glm::vec3 color = glm::vec3(0.0f);
     glm::vec3 N;
     if (glm::dot(dir_in, hitInfo.normal) > 0) {
         N = glm::normalize(hitInfo.normal);
@@ -181,23 +200,12 @@ glm::vec3 transparentColor(const Ray& ray, const HitInfo& hitInfo, const Boundin
         N = glm::normalize(-hitInfo.normal);
     }
 
-    float ratio = index_in / hitInfo.material.index_of_refraction;
+    float ratio = ray.index_in / hitInfo.material.index_of_refraction;
     float c = glm::dot(N, dir_in);
-    glm::vec3 dir_through = ratio * dir_in + ((ratio * c) - sqrtf(1 - powf(ratio, 2)*(1 - powf(c, 2)))) * N;
-    Ray ray_through = Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through };
-
-    HitInfo hit_through;
-    if (bvh.intersect(ray_through, hit_through)) {
-        drawRay(ray_through, glm::vec3(1, 1, 0));
-        color += (1 - hitInfo.material.transparency) * (transparentColor(ray_through, hit_through, bvh, lightPosition, lightColor, cameraPos, hitInfo.material.index_of_refraction));
-        if (visibleToLight(ray_through, lightPosition, hit_through, bvh)) {
-            color += (diffuseOnly(hit_through, lightPosition, lightColor) +
-                phongSpecularOnly(hit_through, lightPosition, lightColor, cameraPos)) * 
-                (1-hitInfo.material.transparency);
-        }
-    }
-    return color;
+    glm::vec3 dir_through = ratio * dir_in + ((ratio * c) - sqrtf(1 - powf(ratio, 2) * (1 - powf(c, 2)))) * N;
+    return Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through , hitInfo.material.index_of_refraction };
 }
+
 
 //Recursive ray tracing
 Ray computeReflectedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo, const bool interpolate) {
@@ -297,17 +305,24 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
 glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level) {
     // compute shading for each light source
     glm::vec3 color = glm::vec3(0.0f);
+    float dim = 1.0f;
     for (PointLight pointLight : scene.pointLights) {
-        if (visibleToLight(ray, pointLight.position, hitInfo, bvh, level)) {
-            color += diffuseOnly(hitInfo, pointLight.position, pointLight.color, interpolation_on);
-            color += phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin, interpolation_on);
+        if (visibleToLight(ray, pointLight.position, hitInfo, bvh, level, dim)) {
+            color += dim * diffuseOnly(hitInfo, pointLight.position, pointLight.color, interpolation_on);
+            color += dim * phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin, interpolation_on);
         }
     }
     //recursive ray tracing
     Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
     if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
-        glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
+        glm::vec3 reflected_color = dim * hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
         color += reflected_color;
+    }
+    //refraction and transparancy
+    Ray refracted_ray = computeRefractedRay(bvh, ray, hitInfo, interpolation_on);
+    if (hitInfo.material.transparency > 0.0f) {
+        glm::vec3 refracted_color = dim * getFinalColor(scene, bvh, refracted_ray, level + 1);
+        color += refracted_color;
     }
     return color;
 }

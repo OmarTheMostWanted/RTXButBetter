@@ -25,4 +25,5 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
 
 static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy& bvh, Ray ray, int level);
 
+Ray computeRefractedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo, const bool interpolate);
 
