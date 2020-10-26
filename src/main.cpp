@@ -37,9 +37,13 @@ enum class ViewMode {
 
 
 const float origin_shift = 0.0001f;
-const int number_light_samples = 64; //set to 12 for faster rendering times
+const int number_light_samples = 32; //set to 12 for faster rendering times
 const int ray_tracing_levels = 8;
+const float bloomThreshold = 0.9f;
+const int bloomFilterSize = 16;
 
+//enable Bloom Filter
+const bool bloomF = true;
 
 //debug ray colors:
 //white = ray to point to intersection point if exists.
@@ -260,21 +264,70 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
     float i = 0.0;
     int samplesTaken = 0;
 
-    while(i < (glm::pi<float>()/4)){
+    while (i < (glm::pi<float>() / 4)) {
 
-        glm::mat4 rotation = glm::rotate( glm::mat4(1.0f) , i , randomRay.origin);
+        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), i, randomRay.origin);
 
-        randomRay.direction = glm::vec4 {randomRay.direction  , 1}* rotation;
+        randomRay.direction = glm::vec4{randomRay.direction, 1} * rotation;
 
-        i += (glm::pi<float>() / ( (float) numberOfSamples) );
+        i += (glm::pi<float>() / ((float) numberOfSamples));
 
-        float distanceFromPlainCenterToSamplePoint = (sphericalLight.radius * glm::length(p - rayToSphereCenter.origin)) /
-                                                     glm::length(rayToSphereCenter.origin - sphericalLight.position);
+        float distanceFromPlainCenterToSamplePoint =
+                (sphericalLight.radius * glm::length(p - rayToSphereCenter.origin)) /
+                glm::length(rayToSphereCenter.origin - sphericalLight.position);
 
-        color += takeSamples(randomRay , distanceFromPlainCenterToSamplePoint , n , hitInfo , bvh , ray , sphericalLight.color);
+        color += takeSamples(randomRay, distanceFromPlainCenterToSamplePoint, n, hitInfo, bvh, ray,
+                             sphericalLight.color);
         samplesTaken += 8;
     }
     return color;
+}
+
+void blur(Screen &screen, Screen &newScreen, const int filterSize) {
+    auto avg = glm::vec3(0.0f);
+
+    for (int y = 0; y < windowResolution.y; y++) {
+        for (int x = 0; x < windowResolution.x; x++) {
+            for (int a = -filterSize; a < filterSize + 1; ++a) {
+                for (int b = -filterSize; b < filterSize + 1; ++b) {
+                    avg += newScreen.getPixel(x + a, y + b);
+                }
+            }
+            avg /= (2 * filterSize + 1) * (2 * filterSize + 1);
+            screen.setPixel(x, y, avg + screen.getPixel(x, y));
+            avg = glm::vec3(0.0f);
+        }
+    }
+}
+
+
+Screen bloom(Screen &screen) {
+
+    Screen newScreen(screen.m_resolution);
+
+    for (int y = 0; y < windowResolution.y; y++) {
+        for (int x = 0; x < windowResolution.x; x++) {
+            const int i = (screen.m_resolution.y - 1 - y) * screen.m_resolution.x + x;
+            glm::vec3 colorComponents(0.0f);
+
+            if (screen.m_textureData[i].x > bloomThreshold) {
+                colorComponents.x = 1.0f;
+            }
+
+            if (screen.m_textureData[i].y > bloomThreshold) {
+                colorComponents.y = 1.0f;
+            }
+
+            if (screen.m_textureData[i].z > bloomThreshold) {
+                colorComponents.z = 1.0f;
+            }
+
+            newScreen.setPixel(x, y, colorComponents);
+        }
+    }
+
+    return newScreen;
+
 }
 
 
@@ -311,12 +364,16 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
 
             glm::vec3 samplePlainNormal = glm::normalize(sampleLightPositionAtSphereCenter - sphericalLight.position);
 
-            sphereLightSamples += makeSamplePoints(number_light_samples/2, sphericalLight, sampleLightPositionAtSphereCenter,
+            sphereLightSamples += makeSamplePoints(number_light_samples / 2, sphericalLight,
+                                                   sampleLightPositionAtSphereCenter,
                                                    samplePlainNormal, rayToSphereCenter,
                                                    hitInfo, bvh, ray);
-            color += ( sphereLightSamples / (number_light_samples + 1.0f));
+            color += (sphereLightSamples / (number_light_samples + 1.0f));
 
         }
+
+//        std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+
         return color;
     } else {
         // Draw a red debug ray if the ray missed.
@@ -348,6 +405,18 @@ renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolu
             screen.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
         }
     }
+
+
+    if (bloomF) {
+        std::cout << "Blooming img" << std::endl;
+        Screen newScreen = bloom(screen);
+
+        //uncomments to show bloom image only
+//        screen.m_textureData = newScreen.m_textureData;
+
+        blur(screen, newScreen, bloomFilterSize);
+    }
+
 }
 
 int main(int argc, char **argv) {
