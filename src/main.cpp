@@ -39,17 +39,21 @@ enum class ViewMode {
 const float origin_shift = 0.0001f;
 const int number_light_samples = 32; //set to 12 for faster rendering times
 const int ray_tracing_levels = 8;
-const float bloomThreshold = 0.9f;
-const int bloomFilterSize = 16;
+
 
 //enable Bloom Filter
-const bool bloomF = false;
+const bool bloomF = true;
+const bool bloomOnlyDebug = false;
+const float bloomThreshold = 0.9f;
+const int bloomFilterSize = 8;
 
 //enable Motion_blur;
-const bool motion_blur = true;
+const bool motion_blur = false;
 const float motion_blur_strength = 0.01f; //how much the picture moves.
 const float motion_blur_smoothness = 4.0f; // how many frames to per movement.
 const bool motion_blur_horizontal = true;  //if false then the
+const bool custom_motion_blur_direction = true;
+const glm::vec3 motion_bur_direction = glm::vec3(2, 1, 0);
 
 //debug ray colors:
 //white = ray to point to intersection point if exists.
@@ -415,8 +419,14 @@ Screen motionBlur(Screen &original, const Trackball &camera, const Scene &scene,
                 };
                 Ray cameraRay = camera.generateRay(normalizedPixelPos);
 
-                if (motion_blur_horizontal) cameraRay.origin.x = cameraRay.origin.x + shift;
-                else cameraRay.origin.y += shift;
+                if (motion_blur_horizontal && !custom_motion_blur_direction) {
+                    cameraRay.origin.x = cameraRay.origin.x + shift;
+                } else if (!motion_blur_horizontal && !custom_motion_blur_direction) {
+                    cameraRay.origin.y += shift;
+                } else if (custom_motion_blur_direction) {
+                    cameraRay.origin = cameraRay.origin + (glm::normalize(motion_bur_direction)) * shift;
+                }
+
 
                 screenMoved.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
                 motionBlur.setPixel(x, y, (original.getPixel(x, y) + screenMoved.getPixel(x, y)) / 2.0f);
@@ -460,24 +470,19 @@ renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolu
         }
     }
 
-    if (motion_blur) {
-
-        std::cout << "applying motion blur with a shift by " << motion_blur_strength << " in " << motion_blur_smoothness << " steps." << std::endl;
-        screen.m_textureData = motionBlur(screen, camera, scene, bvh, motion_blur_strength,
-                                          motion_blur_smoothness).m_textureData;
-    }
-
-
     if (bloomF) {
         std::cout << "Blooming img" << std::endl;
         Screen newScreen = bloom(screen);
-
-        //uncomments to show bloom image only
-//        screen.m_textureData = newScreen.m_textureData;
-
+        if (bloomOnlyDebug) screen.m_textureData = newScreen.m_textureData;
         blur(screen, newScreen, bloomFilterSize);
     }
 
+    if (motion_blur) {
+        std::cout << "applying motion blur with a shift by " << motion_blur_strength << " in " << motion_blur_smoothness
+                  << " steps." << std::endl;
+        screen.m_textureData = motionBlur(screen, camera, scene, bvh, motion_blur_strength,
+                                          motion_blur_smoothness).m_textureData;
+    }
 }
 
 int main(int argc, char **argv) {
