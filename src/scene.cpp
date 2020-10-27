@@ -57,13 +57,25 @@ Scene loadScene(SceneType type, const std::filesystem::path& dataDir)
 
     } break;
     case Custom: {
-        // === Replace custom.obj by your own 3D model (or call your 3D model custom.obj) ===
-        auto subMeshes = loadMesh(dataDir / "custom.obj");
+//        auto subMeshes = loadMesh(dataDir / "monkey-rotated.obj");
+//        std::move(std::begin(subMeshes), std::end(subMeshes), std::back_inserter(scene.meshes));
+//        // === CHANGE THE LIGHTING IF DESIRED ===
+//        scene.pointLights.push_back(PointLight{glm::vec3(-1, 1, -1), glm::vec3(1)});
+//
+//        scene.planarLights.push_back(
+//                PlanarLight{glm::vec3(0, -0.32f , -4.0f), 1, 1, glm::vec3(0, 0.32f , 2.0f), glm::vec3(1.0f), glm::vec3(1, 0, 0)});
+//
+//        // Spherical light: position, radius, color
+//        //scene.sphericalLight.push_back(SphericalLight{ glm::vec3(0, 1.5f, 0), 0.2f, glm::vec3(1) });
+
+        // Load a 3D model of a Dragon
+        auto subMeshes = loadMesh(dataDir / "CornellBox-Mirror-Rotated.obj", true);
         std::move(std::begin(subMeshes), std::end(subMeshes), std::back_inserter(scene.meshes));
-        // === CHANGE THE LIGHTING IF DESIRED ===
-        scene.pointLights.push_back(PointLight { glm::vec3(-1, 1, -1), glm::vec3(1) });
-        // Spherical light: position, radius, color
-        //scene.sphericalLight.push_back(SphericalLight{ glm::vec3(0, 1.5f, 0), 0.2f, glm::vec3(1) });
+        scene.pointLights.push_back(PointLight{glm::vec3(0, 0.58f, 0), glm::vec3(1)}); // Light at the top of the box
+        scene.planarLights.push_back(
+                PlanarLight{glm::vec3(0, 0.58f, 0), 0.1f , 0.1f, glm::vec3(0, 1, 0), glm::vec3(1.0f), glm::vec3(1, 0, 0)});
+
+
     } break;
     };
 
