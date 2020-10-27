@@ -39,8 +39,8 @@ enum class ViewMode {
 const float origin_shift = 0.0001f;
 const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
 const int ray_tracing_levels = 4;
-const float bloomThreshold = 0.95f;
-const int bloomFilterSize = 8;
+const float bloomThreshold = 0.999f;
+const int bloomFilterSize = 6;
 
 const int number_plain_light_samples = 16;  // has to be multiple of 8;
 //enable Bloom Filter
@@ -488,17 +488,19 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
                     rayToPlainCenter.origin + rayToPlainCenter.t * rayToPlainCenter.direction;
 
             auto planarLightSamples = samplePlanarLight(hitInfo, sampleLightPositionAtPlainCenter, planarLight.color,
-                                                        bvh, ray);
+                                                        bvh, ray);  //take sample from the center
 
             planarLightSamples += makePlainSamplePoints(number_plain_light_samples, planarLight, planarLight.width,
                                                         planarLight.height, rayToPlainCenter, hitInfo, bvh, ray);
 
             color += planarLightSamples / 2.0f;
-
         }
 
+//        std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
 
-        std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+        if(color.x > 1.0f) color.x = 1.0f;
+        if(color.y > 1.0f) color.y = 1.0f;
+        if(color.z > 1.0f) color.z = 1.0f;
 
         return color;
     } else {
