@@ -251,7 +251,6 @@ glm::vec3 samplePlanarLight(const HitInfo &hitInfo, const glm::vec3 &lightPositi
 
     Ray rayToLight = {hitInfo.intersectionPoint,
                       glm::normalize(lightPosition - hitInfo.intersectionPoint)};
-
     color += pointLightShade(scene, bvh, ray, hitInfo, 0);
     return color;
 
@@ -495,6 +494,22 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
             //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
         }
     }
+    for (SphericalLight spherelight : scene.sphericalLight) {
+        if (visibleToLight(ray, spherelight.position, hitInfo, bvh, level, dim)) {
+            color += dim * diffuseOnly(hitInfo, spherelight.position, spherelight.color, interpolation_on);
+            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+            color += dim * phongSpecularOnly(hitInfo, spherelight.position, spherelight.color, ray.origin, interpolation_on);
+            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+        }
+    }
+    for (PlanarLight planarLight : scene.planarLights) {
+        if (visibleToLight(ray, planarLight.position, hitInfo, bvh, level, dim)) {
+            color += dim * diffuseOnly(hitInfo, planarLight.position, planarLight.color, interpolation_on);
+            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+            color += dim * phongSpecularOnly(hitInfo, planarLight.position, planarLight.color, ray.origin, interpolation_on);
+            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+        }
+    }
     //recursive ray tracing
     Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
     if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
@@ -531,7 +546,7 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
                 Ray rayToSphereCenter = { hitInfo.intersectionPoint,
                                          glm::normalize(sphericalLight.position - hitInfo.intersectionPoint) };
                 rayToSphereCenter.t = glm::length(sphericalLight.position - rayToSphereCenter.origin) -
-                    sphericalLight.radius;    //this is working so far.
+                    sphericalLight.radius;  //this is working so far.
                 auto sampleLightPositionAtSphereCenter =
                     rayToSphereCenter.origin + rayToSphereCenter.t * rayToSphereCenter.direction;
 
