@@ -58,6 +58,7 @@ void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
         }
     }
     
+
 }
 
 // Returns number of levels. The more levels the more nodes in the BVH.
@@ -93,8 +94,9 @@ int BoundingVolumeHierarchy::numLevels() const
 
 // Checks intersection with all nodes and returns true if any intersection occurs.
 // Calls intersectWithNodes function recursively.
-bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
+bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo, int level, int max) const
 {
+    if ( max < level) return false;
     bool hit = false;
 
     for (int i = 0; i < parentNodes.size(); i++) {

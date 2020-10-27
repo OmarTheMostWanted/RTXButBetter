@@ -13,6 +13,15 @@ DISABLE_WARNINGS_POP()
 #include <iostream>
 #include <limits>
 
+glm::vec2 findBarycentricCoordinates(const glm::vec3 v0, const glm::vec3 v1, const glm::vec3 v2, const glm::vec3 intersectionPoint) {
+    glm::vec3 normal = glm::cross(v1 - v0, v2 - v0);    
+    glm::vec3 X = glm::cross(v2 - v1, intersectionPoint - v1);
+    glm::vec3 Y = glm::cross(v0 - v2, intersectionPoint - v2);
+    float u = glm::length(X) / glm::length(normal);
+    float v = glm::length(Y) / glm::length(normal);
+    return glm::vec2(u, v);
+}
+
 bool compare_float(float x, float y) {
     if (glm::abs(x - y) < 0.00001f)
         return true; //they are same
@@ -82,9 +91,10 @@ Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v
 /// Input: the three vertices of the triangle
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
 bool
-intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo, Material& material) {
-    Plane plane = trianglePlane(v0, v1, v2);
-    glm::vec3 pointOnPlane = v0;
+intersectRayWithTriangle(const Vertex &v0, const Vertex &v1, const Vertex &v2, Ray &ray, HitInfo &hitInfo, Material& material) {
+    Plane plane = trianglePlane(v0.p, v1.p, v2.p);
+    glm::vec3 pointOnPlane = v0.p;
+
     if (intersectRayWithPlane(plane, ray)) {
         //t = [ (pointOnPlane - rayOrigin)  dot planeNormal) / (rayDirection dot planeNormal) ]
         //intersection point is (rayOrigin + t * rayDirection)
@@ -92,7 +102,7 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
             float t = (glm::dot((pointOnPlane - ray.origin), plane.normal)) / glm::dot(ray.direction, plane.normal);
             glm::vec3 intersectionPoint = ray.origin + t * ray.direction;
 
-            if (pointInTriangle(v0, v1, v2, plane.normal, intersectionPoint)) {
+            if (pointInTriangle(v0.p, v1.p, v2.p, plane.normal, intersectionPoint)) {
 
                 if (t < 0) {
                     return false;
@@ -101,9 +111,11 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
                 if (ray.t > t) {
                     ray.t = t;
 
-                    hitInfo.intersectionPoint = intersectionPoint;
-                    hitInfo.normal = plane.normal;
                     hitInfo.material = material;
+                    glm::vec2 coords = findBarycentricCoordinates(v0.p, v1.p, v2.p, intersectionPoint);
+                    hitInfo.interpolatedNormal = glm::normalize( coords.x * v0.n + coords.y * v1.n + (1 - coords.x - coords.y) * v2.n);
+                    hitInfo.normal = plane.normal;
+                    hitInfo.intersectionPoint = intersectionPoint;
                     return true;
 
                 }
@@ -112,11 +124,14 @@ intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::ve
         } else {
             if (compare_float(dot((pointOnPlane - ray.origin), plane.normal), 0)) { //ray is on the plane
 
+                glm::vec3 intersectionPoint = ray.origin;
 
                 ray.t = 0;
 
-                hitInfo.intersectionPoint = ray.origin;
+                glm::vec2 coords = findBarycentricCoordinates(v0.p, v1.p, v2.p, intersectionPoint);
+                hitInfo.interpolatedNormal = glm::normalize(coords.x * v0.n + coords.y * v1.n + (1 - coords.x - coords.y) * v2.n);
                 hitInfo.normal = plane.normal;
+                hitInfo.intersectionPoint = ray.origin;
                 return true;
             }
         }

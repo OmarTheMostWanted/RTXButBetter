@@ -10,4 +10,5 @@ struct Ray {
     glm::vec3 origin { 0.0f };
     glm::vec3 direction { 0.0f, 0.0f, -1.0f };
     float t { std::numeric_limits<float>::max() };
+    float index_in = 1.0f; //refractive index of the thing the ray is created in, 1 for air
 };
