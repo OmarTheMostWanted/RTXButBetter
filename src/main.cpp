@@ -251,7 +251,7 @@ glm::vec3 samplePlanarLight(const HitInfo &hitInfo, const glm::vec3 &lightPositi
 
     Ray rayToLight = {hitInfo.intersectionPoint,
                       glm::normalize(lightPosition - hitInfo.intersectionPoint)};
-    color += pointLightShade(scene, bvh, ray, hitInfo, 0);
+    color += pointLightShade(scene, bvh, ray, hitInfo, 0, lightPosition, lightColor);
     return color;
 
 }
@@ -330,12 +330,12 @@ glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLigh
 
 glm::vec3 sampleSphere(const HitInfo &hitInfo, const glm::vec3 &lightPosition,
                        const BoundingVolumeHierarchy &bvh,
-                       const Ray &ray, const Scene scene) {
+                       const Ray &ray, const Scene scene, const glm::vec3 &lightColor) {
 
     glm::vec3 color = glm::vec3(0);
     Ray rayToLight = {hitInfo.intersectionPoint,
                       glm::normalize(lightPosition - hitInfo.intersectionPoint)};
-    color += pointLightShade(scene, bvh, ray, hitInfo, 0);
+    color += pointLightShade(scene, bvh, ray, hitInfo, 0, lightPosition, lightColor);
     return color;
 }
 
@@ -363,15 +363,15 @@ takeSphereSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, co
     glm::vec3 samplePoint7 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
     glm::vec3 samplePoint8 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
 
-    color += sampleSphere(hitInfo, samplePoint1, bvh, ray, scene);
-    color += sampleSphere(hitInfo, samplePoint2, bvh, ray, scene);
-    color += sampleSphere(hitInfo, samplePoint3, bvh, ray, scene);
-    color += sampleSphere(hitInfo, samplePoint4, bvh, ray, scene);
+    color += sampleSphere(hitInfo, samplePoint1, bvh, ray, scene, lightColor);
+    color += sampleSphere(hitInfo, samplePoint2, bvh, ray, scene, lightColor);
+    color += sampleSphere(hitInfo, samplePoint3, bvh, ray, scene, lightColor);
+    color += sampleSphere(hitInfo, samplePoint4, bvh, ray, scene, lightColor);
 
-    color += sampleSphere(hitInfo, samplePoint5, bvh, ray, scene);
-    color += sampleSphere(hitInfo, samplePoint6, bvh, ray, scene);
-    color += sampleSphere(hitInfo, samplePoint7, bvh, ray, scene);
-    color += sampleSphere(hitInfo, samplePoint8, bvh, ray, scene);
+    color += sampleSphere(hitInfo, samplePoint5, bvh, ray, scene, lightColor);
+    color += sampleSphere(hitInfo, samplePoint6, bvh, ray, scene, lightColor);
+    color += sampleSphere(hitInfo, samplePoint7, bvh, ray, scene, lightColor);
+    color += sampleSphere(hitInfo, samplePoint8, bvh, ray, scene, lightColor);
 
     return color;
 }
@@ -482,33 +482,15 @@ Screen bloom(Screen &screen) {
 
 
 
-glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level) {
+glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level, const glm::vec3 &position, const glm::vec3 &lightcolor) {
     // compute shading for each light source
     glm::vec3 color = glm::vec3(0.0f);
     float dim = 1.0f;
-    for (PointLight pointLight : scene.pointLights) {
-        if (visibleToLight(ray, pointLight.position, hitInfo, bvh, level, dim)) {
-            color += dim * diffuseOnly(hitInfo, pointLight.position, pointLight.color, interpolation_on);
-            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-            color += dim * phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin, interpolation_on);
-            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-        }
-    }
-    for (SphericalLight spherelight : scene.sphericalLight) {
-        if (visibleToLight(ray, spherelight.position, hitInfo, bvh, level, dim)) {
-            color += dim * diffuseOnly(hitInfo, spherelight.position, spherelight.color, interpolation_on);
-            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-            color += dim * phongSpecularOnly(hitInfo, spherelight.position, spherelight.color, ray.origin, interpolation_on);
-            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-        }
-    }
-    for (PlanarLight planarLight : scene.planarLights) {
-        if (visibleToLight(ray, planarLight.position, hitInfo, bvh, level, dim)) {
-            color += dim * diffuseOnly(hitInfo, planarLight.position, planarLight.color, interpolation_on);
-            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-            color += dim * phongSpecularOnly(hitInfo, planarLight.position, planarLight.color, ray.origin, interpolation_on);
-            //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-        }
+    if (visibleToLight(ray, position, hitInfo, bvh, level, dim)) {
+        color += dim * diffuseOnly(hitInfo, position, lightcolor, interpolation_on);
+        //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+        color += dim * phongSpecularOnly(hitInfo, position, lightcolor, ray.origin, interpolation_on);
+        //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
     }
     //recursive ray tracing
     Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
@@ -536,13 +518,13 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
         //         Draw a white debug ray.
         drawRay(ray, glm::vec3(1.0f));
         auto color = glm::vec3(0.0f);
+
         //shading
-        if (!scene.pointLights.empty()) {
-            color += pointLightShade(scene, bvh, ray, hitInfo, level);
+        for (PointLight pointLight : scene.pointLights) {
+            color += pointLightShade(scene, bvh, ray, hitInfo, level, pointLight.position, pointLight.color);
         }
 
-        if (!scene.sphericalLight.empty()) {
-            for (SphericalLight sphericalLight : scene.sphericalLight) {
+       for (SphericalLight sphericalLight : scene.sphericalLight) {
                 Ray rayToSphereCenter = { hitInfo.intersectionPoint,
                                          glm::normalize(sphericalLight.position - hitInfo.intersectionPoint) };
                 rayToSphereCenter.t = glm::length(sphericalLight.position - rayToSphereCenter.origin) -
@@ -551,7 +533,7 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
                     rayToSphereCenter.origin + rayToSphereCenter.t * rayToSphereCenter.direction;
 
                 auto sphereLightSamples = sampleSphere(hitInfo, sampleLightPositionAtSphereCenter,
-                    bvh, ray, scene);
+                    bvh, ray, scene, sphericalLight.color);
 
                 glm::vec3 samplePlainNormal = glm::normalize(sampleLightPositionAtSphereCenter - sphericalLight.position);
 
@@ -561,8 +543,6 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
                     hitInfo, bvh, ray, scene);
                 color += (sphereLightSamples / (number_sphere_light_samples + 1.0f));
             }
-        }
-        if (!scene.planarLights.empty()) {
             for (PlanarLight planarLight : scene.planarLights) {
 
                 Ray rayToPlainCenter = { hitInfo.intersectionPoint,
@@ -580,7 +560,6 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
                     planarLight.height, rayToPlainCenter, hitInfo, bvh, ray, scene);
 
                 color += planarLightSamples / 2.0f;
-            }
         }
 
             //        std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
