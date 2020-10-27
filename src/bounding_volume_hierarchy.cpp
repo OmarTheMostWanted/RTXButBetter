@@ -162,7 +162,7 @@ bool BoundingVolumeHierarchy::intersectWithTriangles(int nodeIndex, Ray& ray, Hi
 
     for (int i : leaf.indices) {
 
-        result = result | intersectRayWithTriangle(vertices[triangles[i][0]].p, vertices[triangles[i][1]].p, vertices[triangles[i][2]].p,
+        result = result | intersectRayWithTriangle(vertices[triangles[i][0]], vertices[triangles[i][1]], vertices[triangles[i][2]],
             ray, hitInfo, m_pScene->meshes[leaf.meshIndex].material);
     }
 
