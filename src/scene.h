@@ -50,6 +50,16 @@ struct SphericalLight {
     glm::vec3 color;
 };
 
+struct PlanarLight {
+    glm::vec3 position;
+    float width;
+    float height;
+    glm::vec3 normal;
+    glm::vec3 color;
+    glm::vec3 direction;
+
+};
+
 struct Scene {
     std::vector<Mesh> meshes;
     std::vector<Sphere> spheres;
@@ -57,6 +67,8 @@ struct Scene {
 
     std::vector<PointLight> pointLights;
     std::vector<SphericalLight> sphericalLight;
+    std::vector<PlanarLight> planarLights;
+
 };
 
 // Load a prebuilt scene.
