@@ -95,19 +95,26 @@ glm::vec3 phongSpecularOnly(const HitInfo &hitInfo, const glm::vec3 &lightPositi
            glm::pow(glm::max(glm::dot(reflectedLight, camVec), 0.0f), hitInfo.material.shininess) * lightColor;
 }
 
-bool visibleToLightTransparant(Ray ray, glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy& bvh) {
-    float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
-    float fromPointToIntersection = glm::length(hitInfo.intersectionPoint - (hitInfo.intersectionPoint + (ray.direction * ray.t)));
-    if (fromPointToIntersection > fromLightToPoint) return true;
-    if (hitInfo.material.transparency > 0.00001f) {
-        Ray refractedRay = computeRefractedRay(bvh, ray, hitInfo, false);
-        HitInfo hit;
-        if (bvh.intersect(refractedRay, hit, 0, ray_tracing_levels)) return visibleToLightTransparant(refractedRay, lightPosition, hit, bvh);
-        ray.t = fromLightToPoint;
-        drawRay(ray, glm::vec3(0, 1.0f, 0.0f));
-        return true;
+bool visibleToLightTransparant(Ray ray, glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy& bvh, int level, float &dim) {
+    Ray newRay = { hitInfo.intersectionPoint + ray.direction * origin_shift, ray.direction };
+    HitInfo newHit;
+    dim = (dim + hitInfo.material.transparency) / 2;
+    if (level > ray_tracing_levels) return true;
+    if (bvh.intersect(newRay, newHit, 0, ray_tracing_levels) && compare_floats(newHit.material.transparency, 0.0f)) {
+        float fromPointToIntersection = glm::length(hitInfo.intersectionPoint - (hitInfo.intersectionPoint + (newRay.direction * newRay.t)));
+        float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
+
+        //make sure if the there is an object closer to the point than the light ie the light is blocked
+        if (fromPointToIntersection < fromLightToPoint) {
+            drawRay(newRay, glm::vec3(0, 0, 1));
+            return false;
+        }
+        else {
+            drawRay(newRay, glm::vec3(0, 1.0f, 0.0f));
+            return true;
+        }
     }
-    else return false;
+    else return visibleToLightTransparant(newRay, lightPosition, newHit, bvh, level + 1, dim);
 }
 
 /**
@@ -119,7 +126,7 @@ bool visibleToLightTransparant(Ray ray, glm::vec3 lightPosition, HitInfo hitInfo
  * @param bvh
  * @return
  */
-bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh, int level) {
+bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy &bvh, int level, float &dim) {
 
     Ray rayToLight = {hitInfo.intersectionPoint, glm::normalize(lightPosition - hitInfo.intersectionPoint) };
     auto cosLightNormal = glm::dot(rayToLight.direction , hitInfo.normal);
@@ -133,17 +140,11 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
             HitInfo hitInfo1;
 
-            auto intersection = bvh.intersect(rayToLight, hitInfo1, level, ray_tracing_levels);
+            auto intersection = bvh.intersect(rayToLight, hitInfo1, 0, ray_tracing_levels);
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
-            
-            if (intersection && hitInfo1.material.transparency > 0.00001f) {
-                Ray refractedLightCheck = computeRefractedRay(bvh, rayToLight, hitInfo1, false);
-                HitInfo refractedLightHit;
-                if (bvh.intersect(refractedLightCheck, refractedLightHit, 0 , ray_tracing_levels)) return visibleToLightTransparant(refractedLightCheck, lightPosition, refractedLightHit, bvh);
-            }
 
-            if (intersection) {
+            if (intersection && compare_floats(hitInfo1.material.transparency, 0.0f)) {
 
                 float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
@@ -152,6 +153,11 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
                     return false;
                 }
+            }
+            else {
+                drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
+                dim = hitInfo.material.transparency;
+                return visibleToLightTransparant(rayToLight, lightPosition, hitInfo1, bvh, 0, dim);
             }
             rayToLight.t = fromLightToPoint;
             drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
@@ -168,14 +174,18 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
 
-            if (intersection) {
+            if (intersection && compare_floats(hitInfo1.material.transparency, 0.0f)) {
 
-                float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
+                float fromPointToIntersection = glm::length(hitInfo.intersectionPoint - (hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
+                //make sure if the there is an object closer to the point than the light ie the light is blocked
                 if (fromPointToIntersection < fromLightToPoint) {
-                    drawRay(rayToLight, glm::vec3(0 , 0 , 1));
+                    drawRay(rayToLight, glm::vec3(0, 0, 1));
                     return false;
                 }
+            }
+            else {
+                return visibleToLightTransparant(rayToLight, lightPosition, hitInfo1, bvh, 0, dim);
             }
             rayToLight.t = fromLightToPoint;
             drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
@@ -189,7 +199,6 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 //Refraction
 Ray computeRefractedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, const HitInfo& hitInfo, const bool interpolate) {
     glm::vec3 dir_in = glm::normalize(ray.direction);
-    glm::vec3 color = glm::vec3(0.0f);
     glm::vec3 N;
     if (glm::dot(dir_in, hitInfo.normal) > 0) {
         N = glm::normalize(hitInfo.normal);
@@ -303,10 +312,11 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
 glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level) {
     // compute shading for each light source
     glm::vec3 color = glm::vec3(0.0f);
+    float dim = 1.0f;
     for (PointLight pointLight : scene.pointLights) {
-        if (visibleToLight(ray, pointLight.position, hitInfo, bvh, level)) {
-            color += diffuseOnly(hitInfo, pointLight.position, pointLight.color, interpolation_on);
-            color += phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin, interpolation_on);
+        if (visibleToLight(ray, pointLight.position, hitInfo, bvh, level, dim)) {
+            color += dim * diffuseOnly(hitInfo, pointLight.position, pointLight.color, interpolation_on);
+            color += dim * phongSpecularOnly(hitInfo, pointLight.position, pointLight.color, ray.origin, interpolation_on);
         }
     }
     //recursive ray tracing
