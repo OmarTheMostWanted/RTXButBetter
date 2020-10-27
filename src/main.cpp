@@ -38,10 +38,28 @@ enum class ViewMode {
 
 
 const float origin_shift = 0.0001f;
-const int number_light_samples = 64; //set to 12 for faster rendering times
-const int ray_tracing_levels = 2;
+const int ray_tracing_levels = 8;
 const bool interpolation_on = true;
 
+
+const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
+const int number_plain_light_samples = 16;  // has to be multiple of 8;
+
+const int ray_tracing_levels = 4;
+
+//enable Bloom Filter
+const bool bloomF = true;
+const bool bloomOnlyDebug = false;
+const float bloomThreshold = 0.9f;
+const int bloomFilterSize = 8;
+
+//enable Motion_blur;
+const bool motion_blur = false;
+const float motion_blur_strength = 0.01f; //how much the picture moves.
+const float motion_blur_smoothness = 4.0f; // how many frames to per movement.
+const bool motion_blur_horizontal = true;  //if false then the
+const bool custom_motion_blur_direction = true;
+const glm::vec3 motion_bur_direction = glm::vec3(2, 1, 0);
 
 //debug ray colors:
 //white = ray to point to intersection point if exists.
@@ -224,6 +242,93 @@ Ray computeReflectedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, cons
     return Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
 }
 
+glm::vec3 samplePlanarLight(const HitInfo &hitInfo, const glm::vec3 &lightPosition, const glm::vec3 &lightColor,
+                            const BoundingVolumeHierarchy &bvh,
+                            const Ray &ray) {
+    glm::vec3 color = glm::vec3(0);
+
+    Ray rayToLight = {hitInfo.intersectionPoint,
+                      glm::normalize(lightPosition - hitInfo.intersectionPoint)};
+
+    if (visibleToLight(ray, lightPosition, hitInfo, bvh)) {
+        color += diffuseOnly(hitInfo, lightPosition, lightColor);
+        color += phongSpecularOnly(hitInfo, lightPosition, lightColor, ray.origin);
+    }
+    color += recursiveRay(ray, hitInfo, bvh, ray_tracing_levels, lightPosition, lightColor, ray.origin);
+    return color;
+
+}
+
+
+//   a----------b
+//   |          |
+//   |          |
+//   c----------d
+void drawPlainLight(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d) {
+
+    Ray ray1 = {a, glm::normalize(b - a), glm::length(a - b)};
+    Ray ray2 = {b, glm::normalize(d - b), glm::length(d - b)};
+    Ray ray3 = {d, glm::normalize(c - d), glm::length(c - d)};
+    Ray ray4 = {c, glm::normalize(a - c), glm::length(c - a)};
+
+    drawRay(ray1, glm::vec3(1.0f));
+    drawRay(ray2, glm::vec3(1.0f));
+    drawRay(ray3, glm::vec3(1.0f));
+    drawRay(ray4, glm::vec3(1.0f));
+
+}
+
+//          3-------1--------2
+//          |               |
+//          7       .       8
+//          |               |
+//          6-------4-------5
+glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLight, float width, float height,
+                                const Ray &rayToPlainCenter,
+                                HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, Ray &ray) {
+
+    glm::vec3 color = glm::vec3(0.0f);
+
+
+    glm::vec3 point1 = planarLight.position + planarLight.direction * (width / 2);
+    glm::vec3 point2 = point1 + glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
+    glm::vec3 point3 = point1 - glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
+    glm::vec3 point4 = planarLight.position - planarLight.direction * (width / 2);
+    glm::vec3 point5 = point4 + glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
+    glm::vec3 point6 = point4 - glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
+    glm::vec3 point7 = planarLight.position + planarLight.direction * (height / 2);
+    glm::vec3 point8 = planarLight.position + planarLight.direction * (height / 2);
+
+//    std::cout << point1.x << "  " << point1.y << "   " << point1.z << std::endl;
+//    std::cout << point2.x << "  " << point2.y << "   " << point2.z << std::endl;
+//    std::cout << point3.x << "  " << point3.y << "   " << point3.z << std::endl;
+//    std::cout << point4.x << "  " << point4.y << "   " << point4.z << std::endl;
+//    std::cout << point5.x << "  " << point5.y << "   " << point5.z << std::endl;
+//    std::cout << point6.x << "  " << point6.y << "   " << point6.z << std::endl;
+//    std::cout << point7.x << "  " << point7.y << "   " << point7.z << std::endl;
+//    std::cout << point8.x << "  " << point8.y << "   " << point8.z << std::endl;
+
+    color += samplePlanarLight(hitInfo, point1, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point2, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point3, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point4, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point5, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point6, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point7, planarLight.color, bvh, ray);
+    color += samplePlanarLight(hitInfo, point8, planarLight.color, bvh, ray);
+
+    drawPlainLight(point3 , point2 , point6 , point5);
+
+    color /= 8.0f;
+
+    if (light_samples >= 8) {
+        color += makePlainSamplePoints(light_samples - 8, planarLight, width / 2, height / 2, rayToPlainCenter, hitInfo,
+                                       bvh, ray);
+    }
+
+    return color/2.0f;
+}
+
 
 
 glm::vec3 sampleSphere(const HitInfo &hitInfo, const glm::vec3 &lightPosition,
@@ -238,24 +343,28 @@ glm::vec3 sampleSphere(const HitInfo &hitInfo, const glm::vec3 &lightPosition,
 }
 
 
-glm::vec3 takeSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, const glm::vec3 &samplePlainNormal,
-                      const HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, const Ray &ray, const Scene scene) {
+
+glm::vec3
+takeSphereSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, const glm::vec3 &samplePlainNormal,
+                  const HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, const Ray &ray,
+                  const glm::vec3 &lightColor) {
+
 
     glm::vec3 color = glm::vec3(0.0f);
 
     glm::vec3 samplePoint1 = randomRay.origin + randomRay.direction * distanceFromPlainCenterToSamplePoint;
     glm::vec3 samplePoint2 = randomRay.origin - randomRay.direction * distanceFromPlainCenterToSamplePoint;
 
-    glm::vec3 samplePoint3 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint/2);
-    glm::vec3 samplePoint4 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint/2);
+    glm::vec3 samplePoint3 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
+    glm::vec3 samplePoint4 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
 
     randomRay.direction = glm::normalize(glm::cross(randomRay.direction, samplePlainNormal));
 
     glm::vec3 samplePoint5 = randomRay.origin + randomRay.direction * distanceFromPlainCenterToSamplePoint;
     glm::vec3 samplePoint6 = randomRay.origin - randomRay.direction * distanceFromPlainCenterToSamplePoint;
 
-    glm::vec3 samplePoint7 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint/2);
-    glm::vec3 samplePoint8 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint/2);
+    glm::vec3 samplePoint7 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
+    glm::vec3 samplePoint8 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
 
     color += sampleSphere(hitInfo, samplePoint1, bvh, ray, scene);
     color += sampleSphere(hitInfo, samplePoint2, bvh, ray, scene);
@@ -271,9 +380,10 @@ glm::vec3 takeSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint
 }
 
 
-glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphericalLight, const glm::vec3 &p,
-                           const glm::vec3 &n, const Ray &rayToSphereCenter,
-                           HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, Ray &ray, const Scene scene) {
+
+glm::vec3 makeSphereSamplePoints(const int numberOfSamples, const SphericalLight &sphericalLight, const glm::vec3 &p,
+                                 const glm::vec3 &n, const Ray &rayToSphereCenter,
+                                 HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, Ray &ray) {
     //start by choosing a random point on the plane
 //    float x = (float) rand() / RAND_MAX * 2 - 1;
 //    float y = (float) rand() / RAND_MAX * 2 - 1;
@@ -283,7 +393,7 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
 
     float z = ((-1 * n.x * x + n.x * p.x) + (-1 * n.y * y + n.y * p.y) + n.z * p.z) / (n.z);
 
-    glm::vec3 color = glm::vec3 (0.0f);
+    glm::vec3 color = glm::vec3(0.0f);
 
     Ray randomRay;
     randomRay.origin = p;
@@ -292,22 +402,88 @@ glm::vec3 makeSamplePoints(const int numberOfSamples, const SphericalLight &sphe
     float i = 0.0;
     int samplesTaken = 0;
 
-    while(i < (glm::pi<float>()/4)){
+    while (i < (glm::pi<float>() / 4)) {
 
-        glm::mat4 rotation = glm::rotate( glm::mat4(1.0f) , i , randomRay.origin);
+        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), i, randomRay.origin);
 
-        randomRay.direction = glm::vec4 {randomRay.direction  , 1}* rotation;
+        randomRay.direction = glm::vec4{randomRay.direction, 1} * rotation;
 
-        i += (glm::pi<float>() / ( (float) numberOfSamples) );
+        i += (glm::pi<float>() / ((float) numberOfSamples));
 
-        float distanceFromPlainCenterToSamplePoint = (sphericalLight.radius * glm::length(p - rayToSphereCenter.origin)) /
-                                                     glm::length(rayToSphereCenter.origin - sphericalLight.position);
+        float distanceFromPlainCenterToSamplePoint =
+                (sphericalLight.radius * glm::length(p - rayToSphereCenter.origin)) /
+                glm::length(rayToSphereCenter.origin - sphericalLight.position);
 
-        color += takeSamples(randomRay , distanceFromPlainCenterToSamplePoint , n , hitInfo , bvh , ray , scene);
+        color += takeSphereSamples(randomRay, distanceFromPlainCenterToSamplePoint, n, hitInfo, bvh, ray,
+                                   sphericalLight.color);
         samplesTaken += 8;
     }
     return color;
 }
+
+void blur(Screen &screen, Screen &newScreen, const int filterSize) {
+    auto avg = glm::vec3(0.0f);
+
+    for (int y = 0; y < windowResolution.y; y++) {
+        for (int x = 0; x < windowResolution.x; x++) {
+            for (int a = -filterSize; a < filterSize + 1; ++a) {
+                for (int b = -filterSize; b < filterSize + 1; ++b) {
+                    avg += newScreen.getPixel(x + a, y + b);
+                }
+            }
+            avg /= (2 * filterSize + 1) * (2 * filterSize + 1);
+//            screen.setPixel(x, y, (avg + screen.getPixel(x, y))/2.0f );  //take the average instead of adding the two components , to avoid having color values more than 1
+            screen.setPixel(x, y, (avg + screen.getPixel(x, y)) );
+            avg = glm::vec3(0.0f);
+        }
+    }
+}
+
+
+Screen bloom(Screen &screen) {
+
+    Screen newScreen(screen.m_resolution);
+
+    for (int y = 0; y < windowResolution.y; y++) {
+        for (int x = 0; x < windowResolution.x; x++) {
+            const int i = (screen.m_resolution.y - 1 - y) * screen.m_resolution.x + x;
+            glm::vec3 colorComponents(0.0f);
+
+//            if (screen.m_textureData[i].x > bloomThreshold) {
+//                colorComponents.x = 1.0f;
+//            }
+//
+//            if (screen.m_textureData[i].y > bloomThreshold) {
+//                colorComponents.y = 1.0f;
+//            }
+//
+//            if (screen.m_textureData[i].z > bloomThreshold) {
+//                colorComponents.z = 1.0f;
+//            }
+
+            if (screen.m_textureData[i].x > bloomThreshold) {
+                colorComponents.x = screen.m_textureData[i].x;
+            }
+
+            if (screen.m_textureData[i].y > bloomThreshold) {
+                colorComponents.y = screen.m_textureData[i].y;
+            }
+
+            if (screen.m_textureData[i].z > bloomThreshold) {
+                colorComponents.z = screen.m_textureData[i].z;
+            }
+
+            newScreen.setPixel(x, y, colorComponents);
+        }
+    }
+
+    return newScreen;
+
+}
+
+
+
+
 
 glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level) {
     // compute shading for each light source
@@ -333,6 +509,7 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
     }
     return color;
 }
+
 
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
 static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray, int level) {
@@ -361,13 +538,38 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
 
                 glm::vec3 samplePlainNormal = glm::normalize(sampleLightPositionAtSphereCenter - sphericalLight.position);
 
-                sphereLightSamples += makeSamplePoints(number_light_samples / 2, sphericalLight, sampleLightPositionAtSphereCenter,
-                    samplePlainNormal, rayToSphereCenter,
-                    hitInfo, bvh, ray, scene);
-                color += (sphereLightSamples / (number_light_samples + 1.0f));
-
-            }
+            sphereLightSamples += makeSphereSamplePoints(number_sphere_light_samples / 2, sphericalLight,
+                                                         sampleLightPositionAtSphereCenter,
+                                                         samplePlainNormal, rayToSphereCenter,
+                                                         hitInfo, bvh, ray);
+            color += (sphereLightSamples / (number_sphere_light_samples + 1.0f));
         }
+
+        for (PlanarLight planarLight : scene.planarLights) {
+
+            Ray rayToPlainCenter = {hitInfo.intersectionPoint,
+                                    glm::normalize(planarLight.position - hitInfo.intersectionPoint)};
+
+            rayToPlainCenter.t = glm::length(planarLight.position - rayToPlainCenter.origin);
+
+            glm::vec3 sampleLightPositionAtPlainCenter =
+                    rayToPlainCenter.origin + rayToPlainCenter.t * rayToPlainCenter.direction;
+
+            auto planarLightSamples = samplePlanarLight(hitInfo, sampleLightPositionAtPlainCenter, planarLight.color,
+                                                        bvh, ray);  //take sample from the center
+
+            planarLightSamples += makePlainSamplePoints(number_plain_light_samples, planarLight, planarLight.width,
+                                                        planarLight.height, rayToPlainCenter, hitInfo, bvh, ray);
+
+            color += planarLightSamples / 2.0f;
+        }
+
+//        std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
+
+        if(color.x > 1.0f) color.x = 1.0f;
+        if(color.y > 1.0f) color.y = 1.0f;
+        if(color.z > 1.0f) color.z = 1.0f;
+
         return color;
     } else {
         // Draw a red debug ray if the ray missed.
@@ -377,6 +579,60 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
     }
 }
 
+
+Screen motionBlur(Screen &original, const Trackball &camera, const Scene &scene, const BoundingVolumeHierarchy &bvh,
+                  float strength, float smoothness) {
+
+    float steps = strength / smoothness;
+
+    float shift = steps;
+
+    Screen motionBlur(original.m_resolution);
+
+    int counter = 0;
+
+    while (shift <= strength) {
+
+        std::cout << "Motion Frame " << counter << std::endl;
+
+        Screen screenMoved(original.m_resolution);
+        for (int y = 0; y < windowResolution.y; y++) {
+            for (int x = 0; x != windowResolution.x; x++) {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                        float(x) / windowResolution.x * 2.0f - 1.0f,
+                        float(y) / windowResolution.y * 2.0f - 1.0f
+                };
+                Ray cameraRay = camera.generateRay(normalizedPixelPos);
+
+                if (motion_blur_horizontal && !custom_motion_blur_direction) {
+                    cameraRay.origin.x = cameraRay.origin.x + shift;
+                } else if (!motion_blur_horizontal && !custom_motion_blur_direction) {
+                    cameraRay.origin.y += shift;
+                } else if (custom_motion_blur_direction) {
+                    cameraRay.origin = cameraRay.origin + (glm::normalize(motion_bur_direction)) * shift;
+                }
+
+
+                screenMoved.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
+                motionBlur.setPixel(x, y, (original.getPixel(x, y) + screenMoved.getPixel(x, y)) / 2.0f);
+            }
+        }
+
+
+        counter++;
+        shift += steps;
+    }
+
+//    for (int y = 0; y < windowResolution.y; y++) {
+//        for (int x = 0; x != windowResolution.x; x++) {
+//            motionBlur.setPixel(x , y , motionBlur.getPixel(x , y) / (float)counter  );
+//        }
+//    }
+
+    return motionBlur;
+
+}
 
 static void setOpenGLMatrices(const Trackball &camera);
 
@@ -398,6 +654,20 @@ renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolu
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             screen.setPixel(x, y, getFinalColor(scene, bvh, cameraRay, 0));
         }
+    }
+
+    if (bloomF) {
+        std::cout << "Blooming img" << std::endl;
+        Screen newScreen = bloom(screen);
+        if (bloomOnlyDebug) screen.m_textureData = newScreen.m_textureData;
+        blur(screen, newScreen, bloomFilterSize);
+    }
+
+    if (motion_blur) {
+        std::cout << "applying motion blur with a shift by " << motion_blur_strength << " in " << motion_blur_smoothness
+                  << " steps." << std::endl;
+        screen.m_textureData = motionBlur(screen, camera, scene, bvh, motion_blur_strength,
+                                          motion_blur_smoothness).m_textureData;
     }
 }
 

@@ -91,9 +91,10 @@ Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v
 /// Input: the three vertices of the triangle
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
 bool
-intersectRayWithTriangle(const Vertex &v0, const Vertex &v1, const Vertex &v2, Ray &ray, HitInfo &hitInfo) {
+intersectRayWithTriangle(const Vertex &v0, const Vertex &v1, const Vertex &v2, Ray &ray, HitInfo &hitInfo, Material& material) {
     Plane plane = trianglePlane(v0.p, v1.p, v2.p);
     glm::vec3 pointOnPlane = v0.p;
+
     if (intersectRayWithPlane(plane, ray)) {
         //t = [ (pointOnPlane - rayOrigin)  dot planeNormal) / (rayDirection dot planeNormal) ]
         //intersection point is (rayOrigin + t * rayDirection)
@@ -110,13 +111,15 @@ intersectRayWithTriangle(const Vertex &v0, const Vertex &v1, const Vertex &v2, R
                 if (ray.t > t) {
                     ray.t = t;
 
-
+                    hitInfo.material = material;
                     glm::vec2 coords = findBarycentricCoordinates(v0.p, v1.p, v2.p, intersectionPoint);
                     hitInfo.interpolatedNormal = glm::normalize( coords.x * v0.n + coords.y * v1.n + (1 - coords.x - coords.y) * v2.n);
                     hitInfo.normal = plane.normal;
                     hitInfo.intersectionPoint = intersectionPoint;
                     return true;
-                } else return false;
+
+                }
+                return false;
             }
         } else {
             if (compare_float(dot((pointOnPlane - ray.origin), plane.normal), 0)) { //ray is on the plane
@@ -142,6 +145,7 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
     //shift to origin
     glm::vec3 RayOrigin = ray.origin - sphere.center;
 
+
     //pow() is slow
     float A = (ray.direction.x * ray.direction.x) + (ray.direction.y * ray.direction.y) +
               (ray.direction.z * ray.direction.z);
@@ -150,32 +154,37 @@ bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo) {
               (sphere.radius * sphere.radius);
     float D = B * B - (4 * A * C);
 
+
     if (D >= 0) {
 
         float t1 = ((-1 * B) + glm::sqrt(D)) / (2 * A);
         float t2 = ((-1 * B) - glm::sqrt(D)) / (2 * A);
 
         if (t1 >= 0 && t2 >= 0) {
+
             if (ray.t > t2) {
                 ray.t = t2;
 
-                hitInfo.material = sphere.material;
-                hitInfo.intersectionPoint = ray.origin + (ray.t * ray.direction);
+                hitInfo.intersectionPoint = ray.origin + (ray.direction * t2);
                 hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
+                hitInfo.material = sphere.material;
                 return true;
             }
-
+            
         }
 
         if (t1 >= 0 && t2 < 0) { //t2 is the exit point
             if (ray.t > t1) {
                 ray.t = t1;
-                hitInfo.material = sphere.material;
-                hitInfo.intersectionPoint = ray.origin + (ray.t * ray.direction);
+                hitInfo.intersectionPoint = ray.origin + (ray.direction * t1);
                 hitInfo.normal = glm::normalize(hitInfo.intersectionPoint - sphere.center);
+                hitInfo.material = sphere.material;
                 return true;
             }
+        
+            
         }
+
     }
 
     return false;
@@ -211,9 +220,37 @@ bool intersectRayWithShape(const AxisAlignedBox &box, Ray &ray) {
             if (ray.t > tOutGlobal) {
                 ray.t = tOutGlobal;
             }
-        } else if (tInGlobal < ray.t) //rays origin is behind the box. check if this box was closer.
+        }
+        else if (tInGlobal < ray.t) { //rays origin is behind the box. check if this box was closer.
             ray.t = tInGlobal;
+        }
         return true;
     }
+}
+
+bool intersectRayWithNodeBox(const AxisAlignedBox& box, Ray& ray) {
+    float tXMin = (box.lower.x - ray.origin.x) / ray.direction.x;
+    float tYMin = (box.lower.y - ray.origin.y) / ray.direction.y;
+    float tZMin = (box.lower.z - ray.origin.z) / ray.direction.z;
+
+    float tXMax = (box.upper.x - ray.origin.x) / ray.direction.x;
+    float tYMax = (box.upper.y - ray.origin.y) / ray.direction.y;
+    float tZMax = (box.upper.z - ray.origin.z) / ray.direction.z;
+
+    float tInX = glm::min(tXMin, tXMax);
+    float tInY = glm::min(tYMin, tYMax);
+    float tInZ = glm::min(tZMin, tZMax);
+
+    float tOutX = glm::max(tXMin, tXMax);
+    float tOutY = glm::max(tYMin, tYMax);
+    float tOutZ = glm::max(tZMin, tZMax);
+
+    float tInGlobal = glm::max(tInX, glm::max(tInY, tInZ));
+    float tOutGlobal = glm::min(tOutX, glm::min(tOutY, tOutZ));
+
+    if (tInGlobal > tOutGlobal || tOutGlobal < 0) return false; //ray does not cross or is in front of the box
+
+    return true;
+    
 }
 
