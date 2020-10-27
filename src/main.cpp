@@ -43,7 +43,13 @@ const float bloomThreshold = 0.9f;
 const int bloomFilterSize = 16;
 
 //enable Bloom Filter
-const bool bloomF = true;
+const bool bloomF = false;
+
+//enable Motion_blur;
+const bool motion_blur = true;
+const float motion_blur_strength = 0.01f; //how much the picture moves.
+const float motion_blur_smoothness = 4.0f; // how many frames to per movement.
+const bool motion_blur_horizontal = true;  //if false then the
 
 //debug ray colors:
 //white = ray to point to intersection point if exists.
@@ -384,6 +390,54 @@ static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy
 }
 
 
+Screen motionBlur(Screen &original, const Trackball &camera, const Scene &scene, const BoundingVolumeHierarchy &bvh,
+                  float strength, float smoothness) {
+
+    float steps = strength / smoothness;
+
+    float shift = steps;
+
+    Screen motionBlur(original.m_resolution);
+
+    int counter = 0;
+
+    while (shift <= strength) {
+
+        std::cout << "Motion Frame " << counter << std::endl;
+
+        Screen screenMoved(original.m_resolution);
+        for (int y = 0; y < windowResolution.y; y++) {
+            for (int x = 0; x != windowResolution.x; x++) {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                        float(x) / windowResolution.x * 2.0f - 1.0f,
+                        float(y) / windowResolution.y * 2.0f - 1.0f
+                };
+                Ray cameraRay = camera.generateRay(normalizedPixelPos);
+
+                if (motion_blur_horizontal) cameraRay.origin.x = cameraRay.origin.x + shift;
+                else cameraRay.origin.y += shift;
+
+                screenMoved.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
+                motionBlur.setPixel(x, y, (original.getPixel(x, y) + screenMoved.getPixel(x, y)) / 2.0f);
+            }
+        }
+
+
+        counter++;
+        shift += steps;
+    }
+
+//    for (int y = 0; y < windowResolution.y; y++) {
+//        for (int x = 0; x != windowResolution.x; x++) {
+//            motionBlur.setPixel(x , y , motionBlur.getPixel(x , y) / (float)counter  );
+//        }
+//    }
+
+    return motionBlur;
+
+}
+
 static void setOpenGLMatrices(const Trackball &camera);
 
 static void renderOpenGL(const Scene &scene, const Trackball &camera, int selectedLight);
@@ -404,6 +458,13 @@ renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolu
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             screen.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
         }
+    }
+
+    if (motion_blur) {
+
+        std::cout << "applying motion blur with a shift by " << motion_blur_strength << " in " << motion_blur_smoothness << " steps." << std::endl;
+        screen.m_textureData = motionBlur(screen, camera, scene, bvh, motion_blur_strength,
+                                          motion_blur_smoothness).m_textureData;
     }
 
 
