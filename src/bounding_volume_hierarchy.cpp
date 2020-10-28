@@ -58,6 +58,7 @@ void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
         }
     }
     
+
 }
 
 // Returns number of levels. The more levels the more nodes in the BVH.
@@ -93,8 +94,9 @@ int BoundingVolumeHierarchy::numLevels() const
 
 // Checks intersection with all nodes and returns true if any intersection occurs.
 // Calls intersectWithNodes function recursively.
-bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo) const
+bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo, int level, int max) const
 {
+    if ( max < level) return false;
     bool hit = false;
 
     for (int i = 0; i < parentNodes.size(); i++) {
@@ -160,7 +162,7 @@ bool BoundingVolumeHierarchy::intersectWithTriangles(int nodeIndex, Ray& ray, Hi
 
     for (int i : leaf.indices) {
 
-        result = result | intersectRayWithTriangle(vertices[triangles[i][0]].p, vertices[triangles[i][1]].p, vertices[triangles[i][2]].p,
+        result = result | intersectRayWithTriangle(vertices[triangles[i][0]], vertices[triangles[i][1]], vertices[triangles[i][2]],
             ray, hitInfo, m_pScene->meshes[leaf.meshIndex].material);
     }
 
