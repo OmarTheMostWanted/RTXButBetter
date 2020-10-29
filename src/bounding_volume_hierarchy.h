@@ -53,14 +53,14 @@ public:
     // Returns true if the intersection occurs.
     bool intersectWithTriangles(int nodeIndex, Ray& ray, HitInfo& hitInfo) const;
     // Creates an AxisAlignedBoc out of given triangles, returns the created box
-    AxisAlignedBox createBoxFromTriangles(std::vector<int> triangles, int meshIndex);
+    AxisAlignedBox createBoxFromTriangles(std::vector<int>& triangles, int meshIndex);
 
     // Create a parent node and add it to the main vector of vertices.
     Node& createParentNode(int meshNumber);
     // Creates a new node out of given vertices with given indices.
-    Node createNodeFromTriangles(std::vector<int> triangles, int meshIndex);
+    Node createNodeFromTriangles(std::vector<int>& triangles, int meshIndex);
     // Creates a new node out of given vertices given as indices and an already made box.
-    Node createNodeFromTriangles(std::vector<int> triangles, int meshIndex, AxisAlignedBox& box);
+    Node createNodeFromTriangles(std::vector<int>& triangles, int meshIndex, AxisAlignedBox& box);
 
     // Calculates the best splits of a node along all the 3 axes.
     // Each axis is being checked for SPLITS_PER_NODE - 1 different plane divisors.
@@ -72,7 +72,7 @@ public:
 
     // Compares cost of performing a new split to the already existing one and updates it if the new cost turns out to be lower
     // Takes the parent node and a vector containing two groups of vertices' indices resulting from the division
-    void compareCostsAndUpdate(int nodeIndex, std::vector<std::vector<int>> dividedVertices);
+    void compareCostsAndUpdate(int nodeIndex, std::vector<std::vector<int>>& dividedVertices);
 
     // Replaces children of a node. Updates the content of the main nodes vector with the newly added nodes.
     void replaceChildren(int parentNodeIndex, Node& firstChild, Node& secondChild);
@@ -82,19 +82,19 @@ public:
     // Returns vector of two vectors containing indicies of two groups of verticies resulting from the split.
     std::vector<std::vector<int>> divideByPlane(int nodeIndex, char axis, float point);
 
-    std::vector<std::vector<int>> divideByPlaneX(int nodeIndex, float pointX);
-    std::vector<std::vector<int>> divideByPlaneY(int nodeIndex, float pointY);
-    std::vector<std::vector<int>> divideByPlaneZ(int nodeIndex, float pointZ);
+    //std::vector<std::vector<int>> divideByPlaneX(int nodeIndex, float pointX);
+    //std::vector<std::vector<int>> divideByPlaneY(int nodeIndex, float pointY);
+    //std::vector<std::vector<int>> divideByPlaneZ(int nodeIndex, float pointZ);
 
     // Calculates the volume of a given box.
     float calculateBoxVolume(AxisAlignedBox& box);
 
     // Calculates the cost of a split
     // the smaller the cost, the better the split is
-    float calculateSplitCost(AxisAlignedBox firstChild, AxisAlignedBox secondChild);
+    float calculateSplitCost(AxisAlignedBox& firstChild, AxisAlignedBox& secondChild);
 
     // Collects indices of all vertices that triangles with given indices contain and returns them as a set.
-    std::set<int> retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices, int meshIndex);
+    std::set<int> retrieveVerticesIndicesFromTrianglesIndices(std::vector<int>& trianglesIndices, int meshIndex);
     
     // Calculates the optimal height of the tree
     // Uses the logBase as a base of the logarithm in the calculations
