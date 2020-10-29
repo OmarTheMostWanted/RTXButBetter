@@ -10,11 +10,13 @@
 struct Node;
 
 const int SPLITS_PER_NODE = 2; // number of splits being made for each AxisAlignedBox
-const int NUMBER_OF_LEVELS = 12;
 
 class BoundingVolumeHierarchy {
 public:
     BoundingVolumeHierarchy(Scene* pScene);
+
+    // Maximal number of levels in the tree
+    int treeLevels;
 
     std::vector<Node> nodes;
 
@@ -85,6 +87,9 @@ public:
     // Collects indices of all vertices that triangles with given indices contain and returns them as a set.
     std::set<int> retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices, int meshIndex);
     
+    // Calculates the optimal height of the tree
+    // Uses the logBase as a base of the logarithm in the calculations
+    int calculateTreeHeight(float logBase);
 private:
     Scene* m_pScene;
 };

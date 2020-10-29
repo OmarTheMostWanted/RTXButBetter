@@ -44,20 +44,21 @@ const bool glossy_reflection_on = true;
 const float glossyness = 0.05f;
 
 const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
-const int number_plain_light_samples = 16;  // has to be multiple of 8;
+const int number_plain_light_samples = 16;  // is set to the closest multiple of 8;
 
-//enable Bloom Filter
-const bool bloomF = false;
-const bool bloomOnlyDebug = false;
-const float bloomThreshold = 0.9f;
-const int bloomFilterSize = 8;
+//Bloom Filter
+const bool bloom_filter = false; // enable
+const bool bloom_debug = false;
+const float bloom_threshold = 0.9f;
+const int bloom_filter_size = 8;
 
-//enable Motion_blur;
-const bool motion_blur = false;
+
+//Motion Blur
+const bool motion_blur = false; // enable
 const float motion_blur_strength = 0.01f; //how much the picture moves.
 const float motion_blur_smoothness = 4.0f; // how many frames to per movement.
-const bool motion_blur_horizontal = false;  //if false then the
-const bool custom_motion_blur_direction = false;
+const bool motion_blur_horizontal = false;  //if false then the movement is vertical.
+const bool custom_motion_blur_direction = false; // if this is set to true , then the motion blur direction is give by the vector below
 const glm::vec3 motion_bur_direction = glm::vec3(2, 1, 0);
 
 //debug ray colors:
@@ -162,11 +163,12 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
 
             float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
 
+            //if there is an intersection with a non transparent object
             if (intersection && compare_floats(hitInfo1.material.transparency, 1.0f)) {
 
                 float fromPointToIntersection = glm::length( hitInfo.intersectionPoint -  ( hitInfo.intersectionPoint + (rayToLight.direction * rayToLight.t)));
 
-                //make sure if the there is an object closer to the point than the light ie the light is blocked
+                //make sure if the there is an object closer to the point than the light. ie: the light is blocked
                 if (fromPointToIntersection < fromLightToPoint) {
                     drawRay(rayToLight, glm::vec3(0 , 0 , 1));
                     return false;
@@ -181,7 +183,7 @@ bool visibleToLight(Ray inComingRay , glm::vec3 lightPosition, HitInfo hitInfo, 
             drawRay(rayToLight, glm::vec3(0, 1.0f, 0.0f));
             return true;
         } else {
-            return false;
+            return false; //if the light and the point we want to shade are on different sides of the mesh.  then the point is not visible to the light.
         }
     } else {
         if(glm::dot(inComingRay.direction , hitInfo.normal) > 0  ){
@@ -244,23 +246,38 @@ Ray computeReflectedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, cons
     return Ray{ hitInfo.intersectionPoint + 0.00001f * direction, direction };
 }
 
+/**
+ * Take light sample from the plain light.
+ *
+ * @param hitInfo For shading.
+ * @param lightPosition Where to sample the plain light from.
+ * @param lightColor  For shading.
+ * @param bvh For shading and light visibility checks.
+ * @param ray From the pixel to the point that needs to be shaded.
+ * @param scene For shading.
+ * @return The Color after sampling the light.
+ */
 glm::vec3 samplePlanarLight(const HitInfo &hitInfo, const glm::vec3 &lightPosition, const glm::vec3 &lightColor,
                             const BoundingVolumeHierarchy &bvh,
                             const Ray &ray, const Scene &scene) {
     glm::vec3 color = glm::vec3(0);
-
     Ray rayToLight = {hitInfo.intersectionPoint,
                       glm::normalize(lightPosition - hitInfo.intersectionPoint)};
     color += pointLightShade(scene, bvh, ray, hitInfo, 0, lightPosition, lightColor);
     return color;
-
 }
 
-
-//   a----------b
-//   |          |
-//   |          |
-//   c----------d
+/** Draw the Plain light, By default it is not visible in the Rasterization view.
+ *  To see the plain lights, Draw debug rays. (press R on the mesh where the planar light is visible)
+ *   a----------b
+ *  |          |
+ *  |          |
+ *  c----------d
+ * @param a
+ * @param b
+ * @param c
+ * @param d
+ */
 void drawPlainLight(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d) {
 
     Ray ray1 = {a, glm::normalize(b - a), glm::length(a - b)};
@@ -275,11 +292,30 @@ void drawPlainLight(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d) {
 
 }
 
-//          3-------1--------2
-//          |               |
-//          7       .       8
-//          |               |
-//          6-------4-------5
+/**
+ * The plain light is sampled 8 times each stage.
+ * The sample positions are from the figure below.
+ * When the light is fully sampled,
+ * 8 more samples are taken but with halve of the width and height of the previous size.
+ * This keeps going untill the requiered number of samples is achieved.
+ *
+ * 3-------1-------2
+ * |               |
+ * 7       .       8
+ * |               |
+ * 6-------4-------5
+ *
+ * @param light_samples number of required samples.
+ * @param planarLight The light.
+ * @param width.
+ * @param height.
+ * @param rayToPlainCenter Center of the plain light.
+ * @param hitInfo For shading.
+ * @param bvh For shading.
+ * @param ray For shading.
+ * @param scene For shading.
+ * @return The color of the point after sampling the plain light.
+ */
 glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLight, float width, float height,
                                 const Ray &rayToPlainCenter,
                                 HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, Ray &ray, const Scene &scene) {
@@ -290,20 +326,13 @@ glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLigh
     glm::vec3 point1 = planarLight.position + planarLight.direction * (width / 2);
     glm::vec3 point2 = point1 + glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
     glm::vec3 point3 = point1 - glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
-    glm::vec3 point4 = planarLight.position - planarLight.direction * (width / 2);
+
+    glm::vec3 point4 = planarLight.position + planarLight.direction * (-width / 2);
     glm::vec3 point5 = point4 + glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
     glm::vec3 point6 = point4 - glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
-    glm::vec3 point7 = planarLight.position + planarLight.direction * (height / 2);
-    glm::vec3 point8 = planarLight.position + planarLight.direction * (height / 2);
 
-//    std::cout << point1.x << "  " << point1.y << "   " << point1.z << std::endl;
-//    std::cout << point2.x << "  " << point2.y << "   " << point2.z << std::endl;
-//    std::cout << point3.x << "  " << point3.y << "   " << point3.z << std::endl;
-//    std::cout << point4.x << "  " << point4.y << "   " << point4.z << std::endl;
-//    std::cout << point5.x << "  " << point5.y << "   " << point5.z << std::endl;
-//    std::cout << point6.x << "  " << point6.y << "   " << point6.z << std::endl;
-//    std::cout << point7.x << "  " << point7.y << "   " << point7.z << std::endl;
-//    std::cout << point8.x << "  " << point8.y << "   " << point8.z << std::endl;
+    glm::vec3 point7 = planarLight.position + glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
+    glm::vec3 point8 = planarLight.position - glm::cross(planarLight.direction, planarLight.normal) * (height / 2);
 
     color += samplePlanarLight(hitInfo, point1, planarLight.color, bvh, ray, scene);
     color += samplePlanarLight(hitInfo, point2, planarLight.color, bvh, ray, scene);
@@ -316,7 +345,7 @@ glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLigh
 
     drawPlainLight(point3 , point2 , point6 , point5);
 
-    color /= 8.0f;
+    color /= 8.0f; //average the color of all the light samples.
 
     if (light_samples >= 8) {
         color += makePlainSamplePoints(light_samples - 8, planarLight, width / 2, height / 2, rayToPlainCenter, hitInfo,
@@ -327,7 +356,16 @@ glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLigh
 }
 
 
-
+/**
+ * Sample the Sphere light from the given position.
+ * @param hitInfo For Shading.
+ * @param lightPosition Where to sample the light from.
+ * @param bvh For Shading.
+ * @param ray For Shading.
+ * @param scene For Shading.
+ * @param lightColor For Shading.
+ * @return The color after sampling the light.
+ */
 glm::vec3 sampleSphere(const HitInfo &hitInfo, const glm::vec3 &lightPosition,
                        const BoundingVolumeHierarchy &bvh,
                        const Ray &ray, const Scene scene, const glm::vec3 &lightColor) {
@@ -340,7 +378,21 @@ glm::vec3 sampleSphere(const HitInfo &hitInfo, const glm::vec3 &lightPosition,
 }
 
 
-
+/**
+ * Takes samples from a sphere , the number of sphere samples is defined by the global variable number_sphere_light_samples.
+ * A direction ray is given , this ray is used to divided the sphere into four quads , two samples is taken from each quarter ;
+ * One from the outs edge and one from the middle.
+ *
+ * @param randomRay this is used to sample 8 points on the sphere , with an angle of 90 between each to samples.
+ * @param distanceFromPlainCenterToSamplePoint this is the center of the sampling plain.
+ * @param samplePlainNormal sampling plain normal.
+ * @param hitInfo For shading.
+ * @param bvh For shading.
+ * @param ray For shading.
+ * @param lightColor For shading.
+ * @param scene For shading.
+ * @return the color of the point after sampling.
+ */
 glm::vec3
 takeSphereSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, const glm::vec3 &samplePlainNormal,
                   const HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, const Ray &ray,
@@ -377,14 +429,29 @@ takeSphereSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, co
 }
 
 
-
+/**
+ * This is where the 'Random Ray' that is used in the takeSphereSamples funtion is created.
+ * To take samples from the sphere, An imaginary sampling plain is made.
+ * This point is defined with a normal n and a point on the plain p.
+ * n is in the ray to the point we want to shade starting from the sphere light center. p is the intersection point of n and the spheres surface.
+ * Then the sphere is projected on the sample plain which creates a circle with the center p.
+ * The radius of the circle is calculated using Thales's theorem.
+ * The first quarter of the circle is divided equally according to the number of samples needed. (each of those divisions represents a 'Random Ray' used in the takeSphereSamples).
+ *
+ * @param numberOfSamples the required number of samples
+ * @param sphericalLight the light
+ * @param p the center of the sampling plain.
+ * @param n the normal of the sampling plain.
+ * @param rayToSphereCenter
+ * @param hitInfo For Shading.
+ * @param bvh For Shading.
+ * @param ray For Shading.
+ * @param scene For Shading.
+ * @return the color after sampling the sphere.
+ */
 glm::vec3 makeSphereSamplePoints(const int numberOfSamples, const SphericalLight &sphericalLight, const glm::vec3 &p,
                                  const glm::vec3 &n, const Ray &rayToSphereCenter,
                                  HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, Ray &ray , const Scene &scene) {
-    //start by choosing a random point on the plane
-//    float x = (float) rand() / RAND_MAX * 2 - 1;
-//    float y = (float) rand() / RAND_MAX * 2 - 1;
-
     float x = 1;
     float y = 1;
 
@@ -399,18 +466,14 @@ glm::vec3 makeSphereSamplePoints(const int numberOfSamples, const SphericalLight
     float i = 0.0;
     int samplesTaken = 0;
 
+    //rotate the random ray according to the number of samples needed.  (8 samples are taken at each oriantation)
     while (i < (glm::pi<float>() / 4)) {
-
         glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), i, randomRay.origin);
-
         randomRay.direction = glm::vec4{randomRay.direction, 1} * rotation;
-
         i += (glm::pi<float>() / ((float) numberOfSamples));
-
         float distanceFromPlainCenterToSamplePoint =
                 (sphericalLight.radius * glm::length(p - rayToSphereCenter.origin)) /
                 glm::length(rayToSphereCenter.origin - sphericalLight.position);
-
         color += takeSphereSamples(randomRay, distanceFromPlainCenterToSamplePoint, n, hitInfo, bvh, ray,
                                    sphericalLight.color, scene);
         samplesTaken += 8;
@@ -418,6 +481,14 @@ glm::vec3 makeSphereSamplePoints(const int numberOfSamples, const SphericalLight
     return color;
 }
 
+/**
+ * Blur images by averaging pixels.
+ * Using the Box filter from the lectures.
+ *
+ * @param screen to take the original image from.
+ * @param newScreen store the result of the blurred image
+ * @param filterSize
+ */
 void blur(Screen &screen, Screen &newScreen, const int filterSize) {
     auto avg = glm::vec3(0.0f);
 
@@ -436,37 +507,29 @@ void blur(Screen &screen, Screen &newScreen, const int filterSize) {
     }
 }
 
-
+/**
+ * This is used to only keep the pixels that are brighter than a given threshold for each color component.
+ *
+ * @param screen the input to threshold.
+ * @return the screen with only the pixels that are higher than thr threshold.
+ */
 Screen bloom(Screen &screen) {
 
     Screen newScreen(screen.m_resolution);
-
     for (int y = 0; y < windowResolution.y; y++) {
         for (int x = 0; x < windowResolution.x; x++) {
             const int i = (screen.m_resolution.y - 1 - y) * screen.m_resolution.x + x;
             glm::vec3 colorComponents(0.0f);
 
-//            if (screen.m_textureData[i].x > bloomThreshold) {
-//                colorComponents.x = 1.0f;
-//            }
-//
-//            if (screen.m_textureData[i].y > bloomThreshold) {
-//                colorComponents.y = 1.0f;
-//            }
-//
-//            if (screen.m_textureData[i].z > bloomThreshold) {
-//                colorComponents.z = 1.0f;
-//            }
-
-            if (screen.m_textureData[i].x > bloomThreshold) {
+            if (screen.m_textureData[i].x > bloom_threshold) {
                 colorComponents.x = screen.m_textureData[i].x;
             }
 
-            if (screen.m_textureData[i].y > bloomThreshold) {
+            if (screen.m_textureData[i].y > bloom_threshold) {
                 colorComponents.y = screen.m_textureData[i].y;
             }
 
-            if (screen.m_textureData[i].z > bloomThreshold) {
+            if (screen.m_textureData[i].z > bloom_threshold) {
                 colorComponents.z = screen.m_textureData[i].z;
             }
 
@@ -533,7 +596,6 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
     return color / 16.0f;
 }
 
-
 glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level, const glm::vec3 &position, const glm::vec3 &lightcolor) {
     // compute shading for each light source
     glm::vec3 color = glm::vec3(0.0f);
@@ -566,10 +628,21 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
 }
 
 
+
+
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
+/**
+ * If there is an intersection, shad the intersection point according to all the light sourse in the scene.
+ *
+ * @param scene has all the light sources.
+ * @param bvh  used to calculate the intersections.
+ * @param ray The ray from the pixel to the scene
+ * @param level to keep track of the levels of ray tracing
+ * @return the finial color of a pixel (before appling bloom or motion blur).
+ */
 static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy& bvh, Ray ray, int level) {
     HitInfo hitInfo;
-    if (bvh.intersect(ray, hitInfo, level, ray_tracing_levels)) {
+    if (bvh.intersect(ray, hitInfo, level, ray_tracing_levels)) { //if there is an intersection shade the intersection point
 
         //         Draw a white debug ray.
         drawRay(ray, glm::vec3(1.0f));
@@ -581,6 +654,11 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
         }
 
        for (SphericalLight sphericalLight : scene.sphericalLight) {
+
+                /*
+                 * sample the spheres by creating an imaginary sampling plain.
+                 */
+
                 Ray rayToSphereCenter = { hitInfo.intersectionPoint,
                                          glm::normalize(sphericalLight.position - hitInfo.intersectionPoint) };
                 rayToSphereCenter.t = glm::length(sphericalLight.position - rayToSphereCenter.origin) -
@@ -617,9 +695,6 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
 
                 color += planarLightSamples / 2.0f;
         }
-
-            //        std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-
             if (color.x > 1.0f) color.x = 1.0f;
             if (color.y > 1.0f) color.y = 1.0f;
             if (color.z > 1.0f) color.z = 1.0f;
@@ -634,6 +709,18 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
         }
     }
 
+/**
+ * to simulate movement, render the image multiple times from different camera angles.
+ * then average the resulting image
+ *
+ * @param original the original image to apply motion to.
+ * @param camera the camera.
+ * @param scene For shading.
+ * @param bvh For shading.
+ * @param strength how much should the objects shift. (the strength of the motion)
+ * @param smoothness how many how many frames to render while shifting (smoothness)
+ * @return the new motion blurred image.
+ */
 Screen motionBlur(Screen &original, const Trackball &camera, const Scene &scene, const BoundingVolumeHierarchy &bvh,
                   float strength, float smoothness) {
 
@@ -710,11 +797,11 @@ renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolu
         }
     }
 
-    if (bloomF) {
+    if (bloom_filter) {
         std::cout << "Blooming img" << std::endl;
         Screen newScreen = bloom(screen);
-        if (bloomOnlyDebug) screen.m_textureData = newScreen.m_textureData;
-        blur(screen, newScreen, bloomFilterSize);
+        if (bloom_debug) screen.m_textureData = newScreen.m_textureData;
+        blur(screen, newScreen, bloom_filter_size);
     }
 
     if (motion_blur) {

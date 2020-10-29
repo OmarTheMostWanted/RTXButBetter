@@ -12,11 +12,14 @@
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
     : m_pScene(pScene)
 {
+
+    treeLevels = calculateTreeHeight(3);
+
     for (int i = 0; i < pScene->meshes.size(); i++) {
 
         createParentNode(i);
 
-        splitNode(parentNodes[i], NUMBER_OF_LEVELS);
+        splitNode(parentNodes[i], treeLevels);
 
     }
 }
@@ -64,7 +67,7 @@ void BoundingVolumeHierarchy::drawNode(int nodeIndex, int remainingLevels) {
 // Returns number of levels. The more levels the more nodes in the BVH.
 int BoundingVolumeHierarchy::numLevels() const
 {
-    return NUMBER_OF_LEVELS;
+    return treeLevels;
 }
 
 // Return true if something is hit, returns false otherwise. Only find hits if they are closer than t stored
@@ -517,4 +520,22 @@ std::set<int>  BoundingVolumeHierarchy::retrieveVerticesIndicesFromTrianglesIndi
     }
 
     return verticesIndices;
+}
+
+// Calculates the optimal height of the tree
+// Uses the logBase as a base of the logarithm in the calculations
+int BoundingVolumeHierarchy::calculateTreeHeight(float logBase) {
+
+    int level = 0;
+
+    for (Mesh mesh : m_pScene->meshes) {
+
+        int temp = ceil(log(mesh.triangles.size()) / log(logBase));
+        if (temp > level) {
+
+            level = temp;
+        }
+    }
+
+    return level;
 }
