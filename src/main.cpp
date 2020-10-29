@@ -41,7 +41,7 @@ const float origin_shift = 0.0001f;
 const int ray_tracing_levels = 8;
 const bool interpolation_on = false;
 const bool glossy_reflection_on = true;
-const float glossyness = 0.01f;
+const float glossyness = 0.05f;
 
 const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
 const int number_plain_light_samples = 16;  // has to be multiple of 8;
@@ -482,7 +482,7 @@ Screen bloom(Screen &screen) {
 glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const BoundingVolumeHierarchy& bvh, const HitInfo& hitInfo, int level) {
     HitInfo hit;
     bvh.intersect(reflected_ray, hit, level, ray_tracing_levels);
-    glm::vec3 origin = reflected_ray.origin + reflected_ray.direction * (reflected_ray.t) * 0.90f;
+    glm::vec3 origin = reflected_ray.origin + reflected_ray.direction * (reflected_ray.t) * 0.80f;
     glm::vec3 normal = glm::normalize(reflected_ray.direction);
     float width = glossyness / ((hitInfo.material.ks.x + hitInfo.material.ks.y + hitInfo.material.ks.z) / 3);
 
@@ -504,6 +504,15 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
     glm::vec3 point7 = point2 + plane_y * (width / 2);
     glm::vec3 point8 = point2 - plane_y * (width / 2);
 
+    glm::vec3 point9 = origin + plane_x * (width / 4);
+    glm::vec3 point10 = origin - plane_x * (width / 4);
+    glm::vec3 point11 = origin + plane_y * (width / 4);
+    glm::vec3 point12 = origin - plane_y * (width / 4);
+    glm::vec3 point13 = point9 + plane_y * (width / 4);
+    glm::vec3 point14 = point9 - plane_y * (width / 4);
+    glm::vec3 point15 = point10 + plane_y * (width / 4);
+    glm::vec3 point16 = point10 - plane_y * (width / 4);
+
     glm::vec3 color = glm::vec3(0.0f);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point1, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point2, reflected_ray.direction }, level + 1);
@@ -513,8 +522,15 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point6, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point7, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point8, reflected_ray.direction }, level + 1);
-
-    return color / 8.0f;
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point9, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point10, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point11, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point12, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point13, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point14, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point15, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point16, reflected_ray.direction }, level + 1);
+    return color / 16.0f;
 }
 
 
