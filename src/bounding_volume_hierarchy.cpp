@@ -13,15 +13,23 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
     : m_pScene(pScene)
 {
 
-    treeLevels = calculateTreeHeight(3);
-
+    int treeHeight = 0;
     for (int i = 0; i < pScene->meshes.size(); i++) {
 
         createParentNode(i);
 
-        splitNode(parentNodes[i], treeLevels);
+        if (SPLITS_PER_NODE == 0) {
 
+            treeHeight = fmax(treeHeight, splitNodeCentroid(parentNodes[i], 0));
+        }
+        else {
+
+            treeHeight = fmax(treeHeight, splitNodeConst(parentNodes[i], 0));
+        }
+        
     }
+
+    this->treeLevels = treeHeight;
 }
 
 // Starts drawing of the boxes contained in the BVH.
@@ -308,15 +316,16 @@ Node BoundingVolumeHierarchy::createNodeFromTriangles(std::vector<int> triangles
 
 // Calculates the best splits of a node along all the 3 axes.
 // Each axis is being checked for SPLITS_PER_NODE - 1 different divisors.
-void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
+int BoundingVolumeHierarchy::splitNodeConst(int nodeIndex, int treeDepth) {
 
+    if (nodes[nodeIndex].indices.size() <= MAX_TRIANGLES_IN_LEAF) {
 
-    Node& node = nodes[nodeIndex];
-    if (calculateBoxVolume(node.box) == 0) {
-
-        return;
+        return treeDepth;
     }
 
+    Node& node = nodes[nodeIndex];
+    std::vector<Vertex> vertices = m_pScene->meshes[node.meshIndex].vertices;
+    std::vector<Triangle> triangles = m_pScene->meshes[node.meshIndex].triangles;
 
     float lowerX = node.box.lower[0];
     float higherX = node.box.upper[0];
@@ -331,20 +340,20 @@ void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
     float rangeY = higherY - lowerY;
     float rangeZ = higherZ - lowerZ;
 
-    float intervalX = rangeX / (float) SPLITS_PER_NODE;
-    float intervalY = rangeY / (float) SPLITS_PER_NODE;
-    float intervalZ = rangeZ / (float) SPLITS_PER_NODE;
+    float intervalX = rangeX / (float) (SPLITS_PER_NODE + 1);
+    float intervalY = rangeY / (float)(SPLITS_PER_NODE + 1);
+    float intervalZ = rangeZ / (float)(SPLITS_PER_NODE + 1);
 
     glm::vec3 normalX = glm::vec3(1, 0, 0);
     glm::vec3 normalY = glm::vec3(0, 1, 0);
     glm::vec3 normalZ = glm::vec3(0, 0, 1);
 
     // Creating vectors to hold resulting triangles after each split
-    std::vector<std::vector<std::vector<int>>> resultingTrianglesX(SPLITS_PER_NODE - 1);
-    std::vector<std::vector<std::vector<int>>> resultingTrianglesY(SPLITS_PER_NODE - 1);
-    std::vector<std::vector<std::vector<int>>> resultingTrianglesZ(SPLITS_PER_NODE - 1);
+    std::vector<std::vector<std::vector<int>>> resultingTrianglesX(SPLITS_PER_NODE);
+    std::vector<std::vector<std::vector<int>>> resultingTrianglesY(SPLITS_PER_NODE);
+    std::vector<std::vector<std::vector<int>>> resultingTrianglesZ(SPLITS_PER_NODE);
 
-    for (int i = 1; i < SPLITS_PER_NODE; i++) {
+     for (int i = 1; i < SPLITS_PER_NODE + 1; i++) {
 
         glm::vec3 pointX = glm::vec3(lowerX + i * intervalX, 0, 0);
         glm::vec3 pointY = glm::vec3(0, lowerY + i * intervalY, 0);
@@ -354,38 +363,70 @@ void BoundingVolumeHierarchy::splitNode(int nodeIndex, int remainingSplits) {
         resultingTrianglesY[i - 1] = divideByPlane(nodeIndex, normalY, pointY);
         resultingTrianglesZ[i - 1] = divideByPlane(nodeIndex, normalZ, pointZ);
 
-        
+
     }
 
-    for (int i = 0; i < SPLITS_PER_NODE - 1; i++) {
+    for (int i = 0; i < SPLITS_PER_NODE; i++) {
 
         compareCostsAndUpdate(nodeIndex, resultingTrianglesX[i]);
         compareCostsAndUpdate(nodeIndex, resultingTrianglesY[i]);
         compareCostsAndUpdate(nodeIndex, resultingTrianglesZ[i]);
     }
 
-    Node& parentNode = nodes[nodeIndex];
+    /*Node& parentNode = nodes[nodeIndex];
     Node& firstChild = nodes[nodes[nodeIndex].indices[0]];
-    Node& secondChild = nodes[nodes[nodeIndex].indices[0]];
+    Node& secondChild = nodes[nodes[nodeIndex].indices[1]];
 
     if (nodes[nodeIndex].box.lower == firstChild.box.lower && nodes[nodeIndex].box.upper == firstChild.box.upper) {
 
-        return;
+        return treeDepth;
     }
-    
+
     if (nodes[nodeIndex].box.lower == secondChild.box.lower && nodes[nodeIndex].box.upper == secondChild.box.upper) {
 
-        return;
+        return treeDepth;
+    }*/
+
+    int newHeight1 = splitNodeConst(nodes[nodeIndex].indices[0], treeDepth + 1);
+    int newHeight2 = splitNodeConst(nodes[nodeIndex].indices[1], treeDepth + 1);
+
+    return fmax(newHeight1, newHeight2);
+}
+
+int BoundingVolumeHierarchy::splitNodeCentroid(int nodeIndex, int treeDepth) {
+
+    if (nodes[nodeIndex].indices.size() <= MAX_TRIANGLES_IN_LEAF) {
+
+        return treeDepth;
     }
 
-    remainingSplits--;
+    Node& node = nodes[nodeIndex];
+    std::vector<Vertex> vertices = m_pScene->meshes[node.meshIndex].vertices;
+    std::vector<Triangle> triangles = m_pScene->meshes[node.meshIndex].triangles;
 
-    if (remainingSplits >= 0) {
+   
 
-        splitNode(nodes[nodeIndex].indices[0], remainingSplits);
-        splitNode(nodes[nodeIndex].indices[1], remainingSplits);
+    glm::vec3 sumOfCentroids(0);
+    for (int index : node.indices) {
+
+        sumOfCentroids += (vertices[triangles[index][0]].p + vertices[triangles[index][1]].p + vertices[triangles[index][2]].p)/3.0f;
     }
+    glm::vec3 averageOfCentroids = sumOfCentroids / (float) node.indices.size();
+
     
+
+    std::vector<std::vector<int>> resultingTrianglesX = divideByPlaneX(nodeIndex, averageOfCentroids[0]);
+    std::vector<std::vector<int>> resultingTrianglesY = divideByPlaneY(nodeIndex, averageOfCentroids[1]);
+    std::vector<std::vector<int>> resultingTrianglesZ = divideByPlaneZ(nodeIndex, averageOfCentroids[2]);
+    compareCostsAndUpdate(nodeIndex, resultingTrianglesX);
+    compareCostsAndUpdate(nodeIndex, resultingTrianglesY);
+    compareCostsAndUpdate(nodeIndex, resultingTrianglesZ);
+
+    
+    int newHeight1 = splitNodeCentroid(nodes[nodeIndex].indices[0], treeDepth + 1);
+    int newHeight2 = splitNodeCentroid(nodes[nodeIndex].indices[1], treeDepth + 1);
+    
+    return fmax(newHeight1, newHeight2);
 }
 
 // Compares cost of performing a new split to the already existing one and updates it if the new cost turns out to be lower
@@ -396,7 +437,7 @@ void BoundingVolumeHierarchy::compareCostsAndUpdate(int nodeIndex, std::vector<s
     AxisAlignedBox firstBox = createBoxFromTriangles(dividedTriangles[0], parentNode.meshIndex);
     AxisAlignedBox secondBox = createBoxFromTriangles(dividedTriangles[1], parentNode.meshIndex);
 
-    float newCost = calculateSplitCost(parentNode.box, firstBox, secondBox);
+    float newCost = calculateSplitCost(firstBox, secondBox);
 
     if (newCost < parentNode.splitCost) {
 
@@ -459,9 +500,9 @@ std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeInd
             bool check2 = glm::dot(normal, controlVector1) >= 0 && glm::dot(normal, controlVector2) >= 0;
             bool check3 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector2) >= 0;*/
 
-
             if (glm::dot(normal, controlVector0) >= 0 || glm::dot(normal, controlVector1) >= 0 || glm::dot(normal, controlVector2) >= 0) {
 
+        
                 firstGroupTriangles.push_back(triangleIndex);
             }
 
@@ -480,6 +521,126 @@ std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeInd
 
 }
 
+std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlaneX(int nodeIndex, float pointX) {
+
+    std::vector<int> firstGroupTriangles;
+    std::vector<int> secondGroupTriangles;
+
+    int meshIndex = nodes[nodeIndex].meshIndex;
+    Mesh mesh = m_pScene->meshes[meshIndex];
+    std::vector<glm::uvec3> triangles = m_pScene->meshes[meshIndex].triangles;
+    std::vector<Vertex> vertices = m_pScene->meshes[meshIndex].vertices;
+
+    for (int triangleIndex : nodes[nodeIndex].indices) {
+
+        float triangleXCoord1 = vertices[triangles[triangleIndex][0]].p[0];
+        float triangleXCoord2 = vertices[triangles[triangleIndex][1]].p[0];
+        float triangleXCoord3 = vertices[triangles[triangleIndex][2]].p[0];
+
+        /*bool check1 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector1) >= 0;
+        bool check2 = glm::dot(normal, controlVector1) >= 0 && glm::dot(normal, controlVector2) >= 0;
+        bool check3 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector2) >= 0;*/
+
+
+        if (triangleXCoord1 >= pointX || triangleXCoord2 >= pointX || triangleXCoord3 >= pointX) {
+
+            firstGroupTriangles.push_back(triangleIndex);
+        }
+        else {
+
+            secondGroupTriangles.push_back(triangleIndex);
+        }
+
+    }
+
+    std::vector<std::vector<int>> result;
+    result.push_back(firstGroupTriangles);
+    result.push_back(secondGroupTriangles);
+
+    return result;
+
+}
+
+std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlaneY(int nodeIndex, float pointY) {
+
+    std::vector<int> firstGroupTriangles;
+    std::vector<int> secondGroupTriangles;
+
+    int meshIndex = nodes[nodeIndex].meshIndex;
+    Mesh mesh = m_pScene->meshes[meshIndex];
+    std::vector<glm::uvec3> triangles = m_pScene->meshes[meshIndex].triangles;
+    std::vector<Vertex> vertices = m_pScene->meshes[meshIndex].vertices;
+
+    for (int triangleIndex : nodes[nodeIndex].indices) {
+
+        float triangleYCoord1 = vertices[triangles[triangleIndex][0]].p[1];
+        float triangleYCoord2 = vertices[triangles[triangleIndex][1]].p[1];
+        float triangleYCoord3 = vertices[triangles[triangleIndex][2]].p[1];
+
+        /*bool check1 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector1) >= 0;
+        bool check2 = glm::dot(normal, controlVector1) >= 0 && glm::dot(normal, controlVector2) >= 0;
+        bool check3 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector2) >= 0;*/
+
+
+        if (triangleYCoord1 >= pointY || triangleYCoord2 >= pointY || triangleYCoord3 >= pointY) {
+
+            firstGroupTriangles.push_back(triangleIndex);
+        }
+        else {
+
+            secondGroupTriangles.push_back(triangleIndex);
+        }
+
+    }
+
+    std::vector<std::vector<int>> result;
+    result.push_back(firstGroupTriangles);
+    result.push_back(secondGroupTriangles);
+
+    return result;
+
+}
+
+std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlaneZ(int nodeIndex, float pointZ) {
+
+    std::vector<int> firstGroupTriangles;
+    std::vector<int> secondGroupTriangles;
+
+    int meshIndex = nodes[nodeIndex].meshIndex;
+    Mesh mesh = m_pScene->meshes[meshIndex];
+    std::vector<glm::uvec3> triangles = m_pScene->meshes[meshIndex].triangles;
+    std::vector<Vertex> vertices = m_pScene->meshes[meshIndex].vertices;
+
+    for (int triangleIndex : nodes[nodeIndex].indices) {
+
+        float triangleZCoord1 = vertices[triangles[triangleIndex][0]].p[2];
+        float triangleZCoord2 = vertices[triangles[triangleIndex][1]].p[2];
+        float triangleZCoord3 = vertices[triangles[triangleIndex][2]].p[2];
+
+        /*bool check1 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector1) >= 0;
+        bool check2 = glm::dot(normal, controlVector1) >= 0 && glm::dot(normal, controlVector2) >= 0;
+        bool check3 = glm::dot(normal, controlVector0) >= 0 && glm::dot(normal, controlVector2) >= 0;*/
+
+
+        if (triangleZCoord1 >= pointZ || triangleZCoord2 >= pointZ || triangleZCoord3 >= pointZ) {
+
+            firstGroupTriangles.push_back(triangleIndex);
+        }
+        else {
+
+            secondGroupTriangles.push_back(triangleIndex);
+        }
+
+    }
+
+    std::vector<std::vector<int>> result;
+    result.push_back(firstGroupTriangles);
+    result.push_back(secondGroupTriangles);
+
+    return result;
+
+}
+
 // Calculates the volume of a given box.
 float BoundingVolumeHierarchy::calculateBoxVolume(AxisAlignedBox& box) {
 
@@ -488,13 +649,12 @@ float BoundingVolumeHierarchy::calculateBoxVolume(AxisAlignedBox& box) {
 
 // Calculates the cost of a split
 // the smaller the cost, the better the split is
-float BoundingVolumeHierarchy::calculateSplitCost(AxisAlignedBox parentBox, AxisAlignedBox firstChild, AxisAlignedBox secondChild ) {
+float BoundingVolumeHierarchy::calculateSplitCost(AxisAlignedBox firstChild, AxisAlignedBox secondChild ) {
 
     float firstChildVolume = calculateBoxVolume(firstChild);
     float secondChildVolume = calculateBoxVolume(secondChild);
-    float parentNodeVolume = calculateBoxVolume(parentBox);
 
-    float cost = (firstChildVolume / parentNodeVolume) + (secondChildVolume / parentNodeVolume);
+    float cost = firstChildVolume + secondChildVolume;
 
     if (firstChildVolume == 0 || secondChildVolume == 0) {
 
@@ -522,20 +682,20 @@ std::set<int>  BoundingVolumeHierarchy::retrieveVerticesIndicesFromTrianglesIndi
     return verticesIndices;
 }
 
-// Calculates the optimal height of the tree
-// Uses the logBase as a base of the logarithm in the calculations
-int BoundingVolumeHierarchy::calculateTreeHeight(float logBase) {
-
-    int level = 0;
-
-    for (Mesh mesh : m_pScene->meshes) {
-
-        int temp = ceil(log(mesh.triangles.size()) / log(logBase));
-        if (temp > level) {
-
-            level = temp;
-        }
-    }
-
-    return level;
-}
+//// Calculates the optimal height of the tree
+//// Uses the logBase as a base of the logarithm in the calculations
+//int BoundingVolumeHierarchy::calculateTreeHeight(float logBase) {
+//
+//    int level = 0;
+//
+//    for (Mesh mesh : m_pScene->meshes) {
+//
+//        int temp = ceil(log(mesh.triangles.size()) / log(logBase));
+//        if (temp > level) {
+//
+//            level = temp;
+//        }
+//    }
+//
+//    return level;
+//}

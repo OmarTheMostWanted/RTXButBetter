@@ -9,7 +9,8 @@
 
 struct Node;
 
-const int SPLITS_PER_NODE = 2; // number of splits being made for each AxisAlignedBox
+const int SPLITS_PER_NODE = 1; // number of splits being made for each AxisAlignedBox, uses centroid if set to 0
+const int MAX_TRIANGLES_IN_LEAF = 40;
 
 class BoundingVolumeHierarchy {
 public:
@@ -63,7 +64,11 @@ public:
 
     // Calculates the best splits of a node along all the 3 axes.
     // Each axis is being checked for SPLITS_PER_NODE - 1 different plane divisors.
-    void splitNode(int nodeIndex, int remainingSplits);
+    // Takes index of the node to split and current depth of the tree on the given level.
+    // Returns new depth of the tree.
+    int splitNodeConst(int nodeIndex, int depth);
+
+    int splitNodeCentroid(int nodeIndex, int depth);
 
     // Compares cost of performing a new split to the already existing one and updates it if the new cost turns out to be lower
     // Takes the parent node and a vector containing two groups of vertices' indices resulting from the division
@@ -77,12 +82,16 @@ public:
     // Returns vector of two vectors containing indicies of two groups of verticies resulting from the split.
     std::vector<std::vector<int>> divideByPlane(int nodeIndex, glm::vec3 normal, glm::vec3 point);
 
+    std::vector<std::vector<int>> divideByPlaneX(int nodeIndex, float pointX);
+    std::vector<std::vector<int>> divideByPlaneY(int nodeIndex, float pointY);
+    std::vector<std::vector<int>> divideByPlaneZ(int nodeIndex, float pointZ);
+
     // Calculates the volume of a given box.
     float calculateBoxVolume(AxisAlignedBox& box);
 
     // Calculates the cost of a split
     // the smaller the cost, the better the split is
-    float calculateSplitCost(AxisAlignedBox parentBox, AxisAlignedBox firstChild, AxisAlignedBox secondChild);
+    float calculateSplitCost(AxisAlignedBox firstChild, AxisAlignedBox secondChild);
 
     // Collects indices of all vertices that triangles with given indices contain and returns them as a set.
     std::set<int> retrieveVerticesIndicesFromTrianglesIndices(std::vector<int> trianglesIndices, int meshIndex);
