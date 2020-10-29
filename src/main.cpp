@@ -545,7 +545,7 @@ Screen bloom(Screen &screen) {
 glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const BoundingVolumeHierarchy& bvh, const HitInfo& hitInfo, int level) {
     HitInfo hit;
     bvh.intersect(reflected_ray, hit, level, ray_tracing_levels);
-    glm::vec3 origin = reflected_ray.origin + reflected_ray.direction * (reflected_ray.t) * 0.80f;
+    glm::vec3 origin = reflected_ray.origin + reflected_ray.direction * (reflected_ray.t) * 0.70f;
     glm::vec3 normal = glm::normalize(reflected_ray.direction);
     float width = glossyness / ((hitInfo.material.ks.x + hitInfo.material.ks.y + hitInfo.material.ks.z) / 3);
 
@@ -577,6 +577,7 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
     glm::vec3 point16 = point10 - plane_y * (width / 4);
 
     glm::vec3 color = glm::vec3(0.0f);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point1, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point2, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point3, reflected_ray.direction }, level + 1);
@@ -593,7 +594,7 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point14, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point15, reflected_ray.direction }, level + 1);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point16, reflected_ray.direction }, level + 1);
-    return color / 16.0f;
+    return color / 17.0f;
 }
 
 glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level, const glm::vec3 &position, const glm::vec3 &lightcolor) {
@@ -610,7 +611,7 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
     Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
     if (glossy_reflection_on && !compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
         glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
-        color += (glossyReflection(reflected_ray, scene, bvh, hitInfo, level) + reflected_color)/2.0f;
+        color += glossyReflection(reflected_ray, scene, bvh, hitInfo, level);
     }
     else if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
         glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
