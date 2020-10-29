@@ -9,8 +9,8 @@
 
 struct Node;
 
-const int SPLITS_PER_NODE = 1; // number of splits being made for each AxisAlignedBox, uses centroid if set to 0
-const int MAX_TRIANGLES_IN_LEAF = 40;
+const int SPLITS_PER_NODE = 0; // number of splits being made for each AxisAlignedBox, uses centroid if set to 0
+const int MAX_TRIANGLES_IN_LEAF = 10;
 
 class BoundingVolumeHierarchy {
 public:
@@ -80,7 +80,7 @@ public:
     // Divides the node along the given plane.
     // Plane is characterised by a normal and any point.
     // Returns vector of two vectors containing indicies of two groups of verticies resulting from the split.
-    std::vector<std::vector<int>> divideByPlane(int nodeIndex, glm::vec3 normal, glm::vec3 point);
+    std::vector<std::vector<int>> divideByPlane(int nodeIndex, char axis, float point);
 
     std::vector<std::vector<int>> divideByPlaneX(int nodeIndex, float pointX);
     std::vector<std::vector<int>> divideByPlaneY(int nodeIndex, float pointY);
