@@ -1023,38 +1023,3 @@ static void renderOpenGL(const Scene& scene, const Trackball& camera, int select
     glDisable(GL_LIGHTING);
     drawSphere(camera.lookAt(), 0.01f, glm::vec3(0.2f, 0.2f, 1.0f));
 }
-
-glm::vec3
-takeSphereSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, const glm::vec3 &samplePlainNormal,
-                  const HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, const Ray &ray,
-                  const glm::vec3 &lightColor, const Scene &scene) {
-
-
-    glm::vec3 color = glm::vec3(0.0f);
-
-    glm::vec3 samplePoint1 = randomRay.origin + randomRay.direction * distanceFromPlainCenterToSamplePoint;
-    glm::vec3 samplePoint2 = randomRay.origin - randomRay.direction * distanceFromPlainCenterToSamplePoint;
-
-    glm::vec3 samplePoint3 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
-    glm::vec3 samplePoint4 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
-
-    randomRay.direction = glm::normalize(glm::cross(randomRay.direction, samplePlainNormal));
-
-    glm::vec3 samplePoint5 = randomRay.origin + randomRay.direction * distanceFromPlainCenterToSamplePoint;
-    glm::vec3 samplePoint6 = randomRay.origin - randomRay.direction * distanceFromPlainCenterToSamplePoint;
-
-    glm::vec3 samplePoint7 = randomRay.origin + randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
-    glm::vec3 samplePoint8 = randomRay.origin - randomRay.direction * (distanceFromPlainCenterToSamplePoint / 2);
-
-    color += sampleSphere(hitInfo, samplePoint1, bvh, ray, scene, lightColor);
-    color += sampleSphere(hitInfo, samplePoint2, bvh, ray, scene, lightColor);
-    color += sampleSphere(hitInfo, samplePoint3, bvh, ray, scene, lightColor);
-    color += sampleSphere(hitInfo, samplePoint4, bvh, ray, scene, lightColor);
-
-    color += sampleSphere(hitInfo, samplePoint5, bvh, ray, scene, lightColor);
-    color += sampleSphere(hitInfo, samplePoint6, bvh, ray, scene, lightColor);
-    color += sampleSphere(hitInfo, samplePoint7, bvh, ray, scene, lightColor);
-    color += sampleSphere(hitInfo, samplePoint8, bvh, ray, scene, lightColor);
-
-    return color;
-}
