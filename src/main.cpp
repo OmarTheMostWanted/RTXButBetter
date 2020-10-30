@@ -545,7 +545,7 @@ Screen bloom(Screen &screen) {
 glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const BoundingVolumeHierarchy& bvh, const HitInfo& hitInfo, int level) {
     HitInfo hit;
     bvh.intersect(reflected_ray, hit, level, ray_tracing_levels);
-    glm::vec3 origin = reflected_ray.origin + reflected_ray.direction * (reflected_ray.t) * 0.70f;
+    glm::vec3 origin = reflected_ray.origin;
     glm::vec3 normal = glm::normalize(reflected_ray.direction);
     float width = glossyness / ((hitInfo.material.ks.x + hitInfo.material.ks.y + hitInfo.material.ks.z) / 3);
 
@@ -558,19 +558,19 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
     glm::vec3 plane_x = glm::normalize( v - glm::dot(v, normal) / glm::dot(normal, normal));
     glm::vec3 plane_y = glm::normalize(glm::cross(normal, plane_x));
 
-    glm::vec3 point1 = origin + plane_x * (width / 2);
-    glm::vec3 point2 = origin - plane_x * (width / 2);
-    glm::vec3 point3 = origin + plane_y * (width / 2);
-    glm::vec3 point4 = origin - plane_y * (width / 2);
+    glm::vec3 point1 = normal + plane_x * (width / 2);
+    glm::vec3 point2 = normal - plane_x * (width / 2);
+    glm::vec3 point3 = normal + plane_y * (width / 2);
+    glm::vec3 point4 = normal - plane_y * (width / 2);
     glm::vec3 point5 = point1 + plane_y * (width / 2);
     glm::vec3 point6 = point1 - plane_y * (width / 2);
     glm::vec3 point7 = point2 + plane_y * (width / 2);
     glm::vec3 point8 = point2 - plane_y * (width / 2);
 
-    glm::vec3 point9 = origin + plane_x * (width / 4);
-    glm::vec3 point10 = origin - plane_x * (width / 4);
-    glm::vec3 point11 = origin + plane_y * (width / 4);
-    glm::vec3 point12 = origin - plane_y * (width / 4);
+    glm::vec3 point9 = normal + plane_x * (width / 4);
+    glm::vec3 point10 = normal - plane_x * (width / 4);
+    glm::vec3 point11 = normal + plane_y * (width / 4);
+    glm::vec3 point12 = normal - plane_y * (width / 4);
     glm::vec3 point13 = point9 + plane_y * (width / 4);
     glm::vec3 point14 = point9 - plane_y * (width / 4);
     glm::vec3 point15 = point10 + plane_y * (width / 4);
@@ -578,22 +578,22 @@ glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const Boundin
 
     glm::vec3 color = glm::vec3(0.0f);
     color += hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point1, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point2, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point3, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point4, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point5, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point6, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point7, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point8, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point9, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point10, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point11, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point12, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point13, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point14, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point15, reflected_ray.direction }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ point16, reflected_ray.direction }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point1 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point2 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point3 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point4 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point5 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point6 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point7 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point8 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point9 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point10 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point11 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point12 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point13 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point14 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point15 }, level + 1);
+    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point16 }, level + 1);
     return color / 17.0f;
 }
 
