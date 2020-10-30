@@ -21,7 +21,8 @@ enum SceneType {
     Spheres,
     Michalsdonut,
     //Mixed,
-    Custom
+    Custom ,
+    planar_light
 };
 
 struct Plane {

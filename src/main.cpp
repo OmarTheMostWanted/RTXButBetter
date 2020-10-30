@@ -44,7 +44,7 @@ const bool glossy_reflection_on = false;
 const float glossyness = 0.05f;
 
 const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
-const int number_plain_light_samples = 0;  // is set to the closest multiple of 8;
+const int number_plain_light_samples = 16;  // is set to the closest multiple of 8;
 
 //Bloom Filter
 const bool bloom_filter = false; // enable
@@ -702,6 +702,8 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
             if (color.y > 1.0f) color.y = 1.0f;
             if (color.z > 1.0f) color.z = 1.0f;
 
+//            std::cout << color.x << " " << color.y << " " << color.z << std::endl;
+
             return color;
     }
         else {
@@ -860,7 +862,7 @@ int main(int argc, char **argv) {
         // === Setup the UI ===
         ImGui::Begin("Final Project - Part 2");
         {
-            constexpr std::array items { "SingleTriangle", "Cube", "Cornell Box (with mirror)", "Cornell Box (spherical light and mirror)", "Monkey", "Dragon", /* "AABBs",*/ "Spheres", "Michal's donut", /*"Mixed",*/ "Custom" };
+            constexpr std::array items { "SingleTriangle", "Cube", "Cornell Box (with mirror)", "Cornell Box (spherical light and mirror)", "Monkey", "Dragon", /* "AABBs",*/ "Spheres", "Michal's donut", /*"Mixed",*/ "Custom" , "planar light"};
             if (ImGui::Combo("Scenes", reinterpret_cast<int*>(&sceneType), items.data(), int(items.size()))) {
                 optDebugRay.reset();
                 scene = loadScene(sceneType, dataPath);

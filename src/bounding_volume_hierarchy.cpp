@@ -4,6 +4,7 @@
 #include <numeric>
 #include <set>
 #include <climits>
+#include <cmath>
 
 // Initializes the BVH class.
 // Creates all the parent nodes - one parent node for each mesh.

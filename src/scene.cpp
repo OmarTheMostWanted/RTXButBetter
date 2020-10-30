@@ -82,6 +82,13 @@ Scene loadScene(SceneType type, const std::filesystem::path& dataDir)
 
 
     } break;
+    case planar_light: {
+        auto subMeshes = loadMesh(dataDir / "CornellBox-Mirror-Rotated.obj", true);
+        std::move(std::begin(subMeshes), std::end(subMeshes), std::back_inserter(scene.meshes));
+        scene.pointLights.push_back(PointLight{glm::vec3(-0.41, 0.58f, 0.09f), glm::vec3(1)}); // Light at the top of the box
+        scene.planarLights.push_back(
+                PlanarLight{glm::vec3(0, 0.58f, 0), 0.1f , 0.1f, glm::vec3(0, 1, 0), glm::vec3(1.0f), glm::vec3(1, 0, 0)});
+    }
     };
 
     return scene;
