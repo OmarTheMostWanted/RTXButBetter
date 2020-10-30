@@ -19,7 +19,6 @@ enum SceneType {
     Dragon,
     //AABBs,
     Spheres,
-    Michalsdonut,
     //Mixed,
     Custom
 };

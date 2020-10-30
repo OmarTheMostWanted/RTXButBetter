@@ -20,4 +20,3 @@ bool intersectRayWithTriangle(const Vertex& v0, const Vertex& v1, const Vertex& 
 bool intersectRayWithShape(const Sphere& sphere, Ray& ray, HitInfo& hitInfo);
 bool intersectRayWithShape(const AxisAlignedBox& box, Ray& ray);
 bool intersectRayWithNodeBox(const AxisAlignedBox& box, Ray& ray);
-glm::vec2 findBarycentricCoordinates(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& intersectionPoint);
