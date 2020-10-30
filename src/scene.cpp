@@ -43,6 +43,11 @@ Scene loadScene(SceneType type, const std::filesystem::path& dataDir)
         std::move(std::begin(subMeshes), std::end(subMeshes), std::back_inserter(scene.meshes));
         scene.pointLights.push_back(PointLight { glm::vec3(-1, 1, -1), glm::vec3(1) });
     } break;
+    case Michalsdonut: {
+            auto subMeshes = loadMesh(dataDir / "michaldonut.obj", true);
+            std::move(std::begin(subMeshes), std::end(subMeshes), std::back_inserter(scene.meshes));
+            scene.pointLights.push_back(PointLight{ glm::vec3(-1, 1, -1), glm::vec3(1) });
+        } break;
     /*case AABBs: {
         //scene.boxes.push_back(AxisAlignedBox { glm::vec3(-2.0f, -2.0f, 5.0f), glm::vec3(-1.0f, -1.0f, 6.0f) });
         //scene.boxes.push_back(AxisAlignedBox { glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(1.5f, 1.5f, 7.0f) });
@@ -69,7 +74,7 @@ Scene loadScene(SceneType type, const std::filesystem::path& dataDir)
 //        //scene.sphericalLight.push_back(SphericalLight{ glm::vec3(0, 1.5f, 0), 0.2f, glm::vec3(1) });
 
         // Load a 3D model of a Dragon
-        auto subMeshes = loadMesh(dataDir / "CornellBox-Mirror-Rotated.obj", true);
+        auto subMeshes = loadMesh(dataDir / "dodgeColorTest.obj", true);
         std::move(std::begin(subMeshes), std::end(subMeshes), std::back_inserter(scene.meshes));
         scene.pointLights.push_back(PointLight{glm::vec3(-0.41, 0.58f, 0.09f), glm::vec3(1)}); // Light at the top of the box
         scene.planarLights.push_back(
