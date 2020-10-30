@@ -17,9 +17,9 @@ glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight& planarLigh
 glm::vec3 sampleSphere(const HitInfo& hitInfo, const glm::vec3& lightPosition,
     const BoundingVolumeHierarchy& bvh,
     const Ray& ray, const Scene scene, const glm::vec3& lightColor);
-glm::vec3 takeSphereSamples(Ray& randomRay, float distanceFromPlainCenterToSamplePoint, const glm::vec3& samplePlainNormal,
-    const HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, const Ray& ray,
-    const glm::vec3& lightColor, const Scene& scene);
+glm::vec3 takeSphereSamples(Ray &randomRay, float distanceFromPlainCenterToSamplePoint, const glm::vec3 &samplePlainNormal,
+const HitInfo &hitInfo, const BoundingVolumeHierarchy &bvh, const Ray &ray,
+const glm::vec3 &lightColor, const Scene &scene);
 glm::vec3 makeSphereSamplePoints(const int numberOfSamples, const SphericalLight& sphericalLight, const glm::vec3& p,
     const glm::vec3& n, const Ray& rayToSphereCenter,
     HitInfo& hitInfo, const BoundingVolumeHierarchy& bvh, Ray& ray, const Scene& scene);
