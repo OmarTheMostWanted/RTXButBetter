@@ -10,7 +10,7 @@
 struct Node;
 
 const int SPLITS_PER_NODE = 0; // number of splits being made for each AxisAlignedBox, uses centroid if set to 0
-const int MAX_TRIANGLES_IN_LEAF = 10;
+const int MAX_TRIANGLES_IN_LEAF = 50;
 
 class BoundingVolumeHierarchy {
 public:
@@ -22,7 +22,7 @@ public:
     std::vector<Node> nodes;
 
     // Contains indices of all the parentNode, one per each mesh
-    std::vector<int> parentNodes;
+    std::vector<int> rootNodes;
 
     // Starts drawing of the boxes contained in the BVH.
     // Only nodes existing at the particural level will be displayed.
