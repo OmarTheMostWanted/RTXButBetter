@@ -57,7 +57,7 @@ const bool motion_blur = false; // enable
 const float motion_blur_strength = 0.01f; //how much the picture moves.
 const float motion_blur_smoothness = 4.0f; // how many frames to per movement.
 const bool motion_blur_horizontal = false;  //if false then the movement is vertical.
-const bool custom_motion_blur_direction = false; // if this is set to true , then the motion blur direction is give by the vector below
+const bool custom_motion_blur_direction = false; // if this is set to true , then the motion blur direction is give by the vector below "motion_blur_horizontal" is ignored if true
 const glm::vec3 motion_bur_direction = glm::vec3(2, 1, 0);
 
 //debug ray colors:
@@ -347,7 +347,9 @@ glm::vec3 makePlainSamplePoints(int light_samples, const PlanarLight &planarLigh
     color /= 8.0f; //average the color of all the light samples.
 
     if (light_samples >= 8) {
-        color += makePlainSamplePoints(light_samples - 8, planarLight, width / 2, height / 2, rayToPlainCenter, hitInfo,
+        auto newWidth = width - (width*(8.0f/(float)light_samples));
+        auto newHeight = height - (height*(8.0f/(float)light_samples));
+        color += makePlainSamplePoints(light_samples - 8, planarLight, newWidth, newHeight, rayToPlainCenter, hitInfo,
                                        bvh, ray, scene);
     }
 
