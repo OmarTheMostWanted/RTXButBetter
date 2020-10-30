@@ -232,7 +232,7 @@ Ray computeRefractedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, cons
     float ratio = ray.index_in / hitInfo.material.index_of_refraction;
     float c = glm::dot(N, dir_in);
     glm::vec3 dir_through = ratio * dir_in + ((ratio * c) - sqrtf(1 - powf(ratio, 2) * (1 - powf(c, 2)))) * N;
-    return Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through , hitInfo.material.index_of_refraction };
+    return Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through ,std::numeric_limits<float>::max() , hitInfo.material.index_of_refraction };
 }
 
 
@@ -604,18 +604,18 @@ glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh
     glm::vec3 color = glm::vec3(0.0f);
     float dim = 1.0f;
     if (visibleToLight(ray, position, hitInfo, bvh, level, dim)) {
-        color += dim * diffuseOnly(hitInfo, position, lightcolor, interpolation_on);
+        color += hitInfo.material.transparency * dim * diffuseOnly(hitInfo, position, lightcolor, interpolation_on);
         //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-        color += dim * phongSpecularOnly(hitInfo, position, lightcolor, ray.origin, interpolation_on);
+        color += hitInfo.material.transparency * dim * phongSpecularOnly(hitInfo, position, lightcolor, ray.origin, interpolation_on);
         //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
     }
     //recursive ray tracing
     Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
-    if (glossy_reflection_on && !compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
+    if (glossy_reflection_on && !compare_vector(hitInfo.material.ks, glm::vec3(0.0f))&& compare_floats(hitInfo.material.transparency, 1.0f)) {
         glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
         color += glossyReflection(reflected_ray, scene, bvh, hitInfo, level);
     }
-    else if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
+    else if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f)) && compare_floats(hitInfo.material.transparency, 1.0f)) {
         glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
         color += reflected_color;
     }
