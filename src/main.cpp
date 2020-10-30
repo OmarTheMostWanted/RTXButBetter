@@ -39,9 +39,9 @@ enum class ViewMode {
 
 const float origin_shift = 0.0001f;
 const int ray_tracing_levels = 8;
-const bool interpolation_on = false;
+const bool interpolation_on = true;
 const bool glossy_reflection_on = true;
-const float glossyness = 0.05f;
+const float glossyness = 0.1f;
 
 const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
 const int number_plain_light_samples = 16;  // is set to the closest multiple of 8;
@@ -116,8 +116,8 @@ glm::vec3 phongSpecularOnly(const HitInfo &hitInfo, const glm::vec3 &lightPositi
 bool visibleToLightTransparant(Ray ray, glm::vec3 lightPosition, HitInfo hitInfo, const BoundingVolumeHierarchy& bvh, int level, float &dim) {
     Ray newRay = { hitInfo.intersectionPoint + ray.direction * origin_shift, ray.direction };
     HitInfo newHit;
-    dim = (dim + hitInfo.material.transparency) / 2;
     if (level > ray_tracing_levels) return true;
+    if (!compare_floats(dim, hitInfo.material.transparency)) dim = dim * hitInfo.material.transparency;
     if (bvh.intersect(newRay, newHit, 0, ray_tracing_levels) && compare_floats(newHit.material.transparency, 1.0f)) {
         float fromPointToIntersection = glm::length(hitInfo.intersectionPoint - (hitInfo.intersectionPoint + (newRay.direction * newRay.t)));
         float fromLightToPoint = glm::length(hitInfo.intersectionPoint - lightPosition);
