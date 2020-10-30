@@ -4,6 +4,7 @@
 #include <numeric>
 #include <set>
 #include <climits>
+#include <glm/geometric.hpp>
 
 // Initializes the BVH class.
 // Creates all the parent nodes - one parent node for each mesh.
@@ -24,11 +25,11 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
 
         if (SPLITS_PER_NODE == 0) {
 
-            treeHeight = fmax(treeHeight, splitNodeCentroid(rootNodes[i], 0));
+            treeHeight = fmax(treeHeight, splitNodeCentroid(parentNodes[i], 0));
         }
         else {
 
-            treeHeight = fmax(treeHeight, splitNodeConst(rootNodes[i], 0));
+            treeHeight = fmax(treeHeight, splitNodeConst(parentNodes[i], 0));
         }
         
     }
@@ -38,7 +39,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 
-    std::cout << "Time to build the bvh structure: " << elapsed_secs << " seconds" << std::endl;
+    std::cout << "Building of the BVH structure is finished. It took " << elapsed_secs << " seconds to build it." << std::endl;
 }
 
 // Starts drawing of the boxes contained in the BVH.
@@ -46,9 +47,9 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene* pScene)
 void BoundingVolumeHierarchy::debugDraw(int level)
 {
     // First nodes in the nodes vector are the parent nodes.
-    for (int i = 0; i < rootNodes.size(); i++) {
+    for (int i = 0; i < parentNodes.size(); i++) {
 
-        drawNode(rootNodes[i], level);
+        drawNode(parentNodes[i], level);
     }
 }
 
@@ -125,9 +126,9 @@ bool BoundingVolumeHierarchy::intersect(Ray& ray, HitInfo& hitInfo, int level, i
         hit |= intersectRayWithShape(sphere, ray, hitInfo);
     }
 
-    for (int i = 0; i < rootNodes.size(); i++) {
+    for (int i = 0; i < parentNodes.size(); i++) {
 
-    hit = hit | intersectWithNodes(rootNodes[i], ray, hitInfo);
+    hit = hit | intersectWithNodes(parentNodes[i], ray, hitInfo);
     }
 
     // intersection with boxes
@@ -291,7 +292,7 @@ Node& BoundingVolumeHierarchy::createParentNode(int meshNumber) {
 
     Node parentNode{ allIndices, 1, newBox, FLT_MAX, meshNumber };
     nodes.push_back(parentNode);
-    rootNodes.push_back(nodes.size() - 1);
+    parentNodes.push_back(nodes.size() - 1);
 
     return parentNode;
 }
@@ -396,7 +397,6 @@ int BoundingVolumeHierarchy::splitNodeConst(int nodeIndex, int treeDepth) {
     return fmax(newHeight1, newHeight2);
 }
 
-// Splits the node using the centroid as a point of the split plane
 int BoundingVolumeHierarchy::splitNodeCentroid(int nodeIndex, int treeDepth) {
 
     if (nodes[nodeIndex].indices.size() <= MAX_TRIANGLES_IN_LEAF) {
@@ -683,7 +683,7 @@ std::vector<std::vector<int>> BoundingVolumeHierarchy::divideByPlane(int nodeInd
 //
 //}
 
-// Calculates the volume of a given box and returns it.
+// Calculates the volume of a given box.
 float BoundingVolumeHierarchy::calculateBoxVolume(AxisAlignedBox& box) {
 
     return (box.upper[0] - box.lower[0]) * (box.upper[1] - box.lower[1]) * (box.upper[2] - box.lower[2]);

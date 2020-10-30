@@ -22,7 +22,7 @@ public:
     std::vector<Node> nodes;
 
     // Contains indices of all the parentNode, one per each mesh
-    std::vector<int> rootNodes;
+    std::vector<int> parentNodes;
 
     // Starts drawing of the boxes contained in the BVH.
     // Only nodes existing at the particural level will be displayed.

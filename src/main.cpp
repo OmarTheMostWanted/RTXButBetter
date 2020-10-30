@@ -40,18 +40,17 @@ enum class ViewMode {
 const float origin_shift = 0.0001f;
 const int ray_tracing_levels = 8;
 const bool interpolation_on = false;
-const bool glossy_reflection_on = false;
-const float glossyness = 0.05f;
+
 
 const int number_sphere_light_samples = 16; //set to 12 for faster rendering times
-const int number_plain_light_samples = 0;  // is set to the closest multiple of 8;
+const int number_plain_light_samples = 16;  // is set to the closest multiple of 8;
+
 
 //Bloom Filter
 const bool bloom_filter = false; // enable
 const bool bloom_debug = false;
 const float bloom_threshold = 0.9f;
 const int bloom_filter_size = 8;
-
 
 //Motion Blur
 const bool motion_blur = false; // enable
@@ -232,7 +231,7 @@ Ray computeRefractedRay(const BoundingVolumeHierarchy& bvh, const Ray& ray, cons
     float ratio = ray.index_in / hitInfo.material.index_of_refraction;
     float c = glm::dot(N, dir_in);
     glm::vec3 dir_through = ratio * dir_in + ((ratio * c) - sqrtf(1 - powf(ratio, 2) * (1 - powf(c, 2)))) * N;
-    return Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through ,std::numeric_limits<float>::max() , hitInfo.material.index_of_refraction };
+    return Ray{ hitInfo.intersectionPoint + 0.00001f * dir_through, dir_through , hitInfo.material.index_of_refraction };
 }
 
 
@@ -544,85 +543,27 @@ Screen bloom(Screen &screen) {
 }
 
 
-glm::vec3 glossyReflection(Ray& reflected_ray, const Scene& scene, const BoundingVolumeHierarchy& bvh, const HitInfo& hitInfo, int level) {
-    HitInfo hit;
-    bvh.intersect(reflected_ray, hit, level, ray_tracing_levels);
-    glm::vec3 origin = reflected_ray.origin;
-    glm::vec3 normal = glm::normalize(reflected_ray.direction);
-    float width = glossyness / ((hitInfo.material.ks.x + hitInfo.material.ks.y + hitInfo.material.ks.z) / 3);
-
-    if (compare_floats((hitInfo.material.ks.x + hitInfo.material.ks.y + hitInfo.material.ks.z) / 3, 1.0f)) return glm::vec3(0.0f);
-
-    glm::vec3 v;
-    if (glm::dot(normal, glm::vec3(1, 0, 0)) > glm::dot(normal, glm::vec3(0, 1, 0))) v = glm::vec3(1, 0, 0);
-    else v = glm::vec3(0, 1, 0);
-    
-    glm::vec3 plane_x = glm::normalize( v - glm::dot(v, normal) / glm::dot(normal, normal));
-    glm::vec3 plane_y = glm::normalize(glm::cross(normal, plane_x));
-
-    glm::vec3 point1 = normal + plane_x * (width / 2);
-    glm::vec3 point2 = normal - plane_x * (width / 2);
-    glm::vec3 point3 = normal + plane_y * (width / 2);
-    glm::vec3 point4 = normal - plane_y * (width / 2);
-    glm::vec3 point5 = point1 + plane_y * (width / 2);
-    glm::vec3 point6 = point1 - plane_y * (width / 2);
-    glm::vec3 point7 = point2 + plane_y * (width / 2);
-    glm::vec3 point8 = point2 - plane_y * (width / 2);
-
-    glm::vec3 point9 = normal + plane_x * (width / 4);
-    glm::vec3 point10 = normal - plane_x * (width / 4);
-    glm::vec3 point11 = normal + plane_y * (width / 4);
-    glm::vec3 point12 = normal - plane_y * (width / 4);
-    glm::vec3 point13 = point9 + plane_y * (width / 4);
-    glm::vec3 point14 = point9 - plane_y * (width / 4);
-    glm::vec3 point15 = point10 + plane_y * (width / 4);
-    glm::vec3 point16 = point10 - plane_y * (width / 4);
-
-    glm::vec3 color = glm::vec3(0.0f);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point1 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point2 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point3 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point4 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point5 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point6 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point7 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point8 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point9 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point10 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point11 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point12 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point13 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point14 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point15 }, level + 1);
-    color += hitInfo.material.ks * getFinalColor(scene, bvh, Ray{ origin, point16 }, level + 1);
-    return color / 17.0f;
-}
 
 glm::vec3 pointLightShade(const Scene& scene, const BoundingVolumeHierarchy& bvh,const Ray &ray, const HitInfo &hitInfo, int level, const glm::vec3 &position, const glm::vec3 &lightcolor) {
     // compute shading for each light source
     glm::vec3 color = glm::vec3(0.0f);
     float dim = 1.0f;
     if (visibleToLight(ray, position, hitInfo, bvh, level, dim)) {
-        color += hitInfo.material.transparency * dim * diffuseOnly(hitInfo, position, lightcolor, interpolation_on);
+        color += dim * diffuseOnly(hitInfo, position, lightcolor, interpolation_on);
         //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
-        color += hitInfo.material.transparency * dim * phongSpecularOnly(hitInfo, position, lightcolor, ray.origin, interpolation_on);
+        color += dim * phongSpecularOnly(hitInfo, position, lightcolor, ray.origin, interpolation_on);
         //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
     }
     //recursive ray tracing
     Ray reflected_ray = computeReflectedRay(bvh, ray, hitInfo, interpolation_on);
-    if (glossy_reflection_on && !compare_vector(hitInfo.material.ks, glm::vec3(0.0f))&& compare_floats(hitInfo.material.transparency, 1.0f)) {
-        glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
-        color += glossyReflection(reflected_ray, scene, bvh, hitInfo, level);
-    }
-    else if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f)) && compare_floats(hitInfo.material.transparency, 1.0f)) {
+    if (!compare_vector(hitInfo.material.ks, glm::vec3(0.0f))) {
         glm::vec3 reflected_color = hitInfo.material.ks * getFinalColor(scene, bvh, reflected_ray, level + 1);
         color += reflected_color;
     }
     //std::cout << color.x << "  " << color.y << "   " << color.z << std::endl;
     //refraction and transparancy
+    Ray refracted_ray = computeRefractedRay(bvh, ray, hitInfo, interpolation_on);
     if (!compare_floats(hitInfo.material.transparency, 1.0f)) {
-        Ray refracted_ray = computeRefractedRay(bvh, ray, hitInfo, interpolation_on);
         glm::vec3 refracted_color = hitInfo.material.transparency * getFinalColor(scene, bvh, refracted_ray, level + 1);
         color += refracted_color;
     }
@@ -860,7 +801,7 @@ int main(int argc, char **argv) {
         // === Setup the UI ===
         ImGui::Begin("Final Project - Part 2");
         {
-            constexpr std::array items { "SingleTriangle", "Cube", "Cornell Box (with mirror)", "Cornell Box (spherical light and mirror)", "Monkey", "Dragon", /* "AABBs",*/ "Spheres", "Michal's donut", /*"Mixed",*/ "Custom" };
+            constexpr std::array items { "SingleTriangle", "Cube", "Cornell Box (with mirror)", "Cornell Box (spherical light and mirror)", "Monkey", "Dragon", /* "AABBs",*/ "Spheres", /*"Mixed",*/ "Custom" };
             if (ImGui::Combo("Scenes", reinterpret_cast<int*>(&sceneType), items.data(), int(items.size()))) {
                 optDebugRay.reset();
                 scene = loadScene(sceneType, dataPath);
